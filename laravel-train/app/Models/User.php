@@ -2,31 +2,54 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password_hash'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
+    public const TYPE_USER = 1;
+
+    public const TYPE_MANAGER = 2;
+
+    public const TYPE_ADMIN = 3;
+
+    public const STATUS_ACTIVE = 1;
+
+    public const STATUS_LOCKED = 0;
+
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    public $timestamps = false;
+
+    protected $authPasswordName = 'password_hash';
+
+    protected $rememberTokenName = '';
+
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'status' => 'integer',
+            'user_type' => 'integer',
+            'department' => 'integer',
+            'birth_date' => 'date:Y-m-d',
+            'created_at' => 'datetime:Y-m-d H:i:s',
+            'update_at' => 'datetime:Y-m-d H:i:s',
         ];
+    }
+
+    /** Lấy các đơn do người dùng tạo. */
+    public function leaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class, 'user_id');
+    }
+
+    /** Lấy các đơn chỉ định người dùng làm người duyệt. */
+    public function assignedLeaveRequests(): HasMany
+    {
+        return $this->hasMany(LeaveRequest::class, 'approver_id');
     }
 }

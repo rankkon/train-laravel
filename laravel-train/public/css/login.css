@@ -1,0 +1,253 @@
+.login-page .site-header {
+    z-index: 1;
+    overflow: hidden;
+    color: #FFFFFF;
+}
+
+.login-page .site-brand {
+    left: 42px;
+    top: 15px;
+    line-height: 45.12px;
+    white-space: nowrap;
+}
+
+.login-page .site-description {
+    line-height: 27.272px;
+    white-space: nowrap;
+}
+
+.login-page {
+    position: relative;
+    min-height: 100vh;
+    margin: 0;
+    background: #E5E5E5;
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    letter-spacing: 0;
+    line-height: normal;
+}
+
+.login-page .login-surface {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding-top: 75px;
+    background: #FFFFFF;
+    box-shadow: 0px 2px 10px 3px rgba(0, 0, 0, 0.25);
+}
+
+.login-page .login-container {
+    position: relative;
+    width: 541px;
+    height: 320px;
+    flex-shrink: 0;
+}
+
+.login-page .login-field {
+    position: absolute;
+    width: 475px;
+    height: 43px;
+    left: 35px;
+    overflow: hidden;
+}
+
+.login-page .login-username {
+    top: 133px;
+}
+
+.login-page .login-password {
+    top: 187px;
+}
+
+.login-page .login-field label {
+    position: absolute;
+    height: 17px;
+    top: 11px;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 15.992px;
+    color: #0D0C0C;
+    white-space: nowrap;
+}
+
+.login-page label[for="username"] {
+    width: 127px;
+    left: 0px;
+}
+
+.login-page label[for="password"] {
+    width: 61px;
+    left: 37px;
+}
+
+.login-page .login-field input {
+    box-sizing: border-box;
+    position: absolute;
+    width: 342px;
+    height: 40px;
+    left: 133px;
+    top: 3px;
+    margin: 0;
+    padding: 7px 10px 14px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    background: #FFFFFF;
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 15.992px;
+    letter-spacing: 0;
+    color: #0D0C0C;
+}
+
+.login-page .login-placeholder {
+    position: absolute;
+    height: 17px;
+    left: 144px;
+    top: 11px;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 15.992px;
+    color: rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.login-page .login-username .login-placeholder {
+    width: 97px;
+}
+
+.login-page .login-password .login-placeholder {
+    width: 61px;
+}
+
+.login-page .login-field input:not(:placeholder-shown) + .login-placeholder {
+    visibility: hidden;
+}
+
+.login-page .required-marker {
+    position: absolute;
+    width: 9px;
+    height: 23px;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 23px;
+    color: #BD0101;
+}
+
+.login-page .login-username .required-marker {
+    left: 99px;
+    top: 12px;
+}
+
+.login-page .login-password .required-marker {
+    left: 98px;
+    top: 11px;
+}
+
+.login-page .login-title {
+    position: absolute;
+    width: 541px;
+    height: 82px;
+    left: 0px;
+    top: 0px;
+    margin: 0;
+    font-weight: 700;
+    font-size: 56px;
+    line-height: 62.968px;
+    color: #007EC6;
+    white-space: nowrap;
+}
+
+.login-page .login-actions button {
+    box-sizing: border-box;
+    position: absolute;
+    height: 50px;
+    top: 270px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 4px 24px;
+    gap: 4px;
+    margin: 0;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    line-height: normal;
+    letter-spacing: 0;
+}
+
+.login-page .button-login {
+    width: 161px;
+    left: 168px;
+    background: #007EC6;
+}
+
+.login-page .button-clear {
+    width: 156px;
+    left: 354px;
+    background: #E2005C;
+}
+
+.login-page .button-login:hover {
+    background: #006EAD;
+}
+
+.login-page .button-clear:hover {
+    background: #C60050;
+    border-width: 2px;
+}
+
+.login-page .button-login:active {
+    background: #005F96;
+}
+
+.login-page .button-clear:active {
+    background: #AA0045;
+}
+
+.login-page .button-text {
+    position: relative;
+    height: 19px;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 17.848px;
+    flex: none;
+    order: 0;
+    flex-grow: 0;
+    white-space: nowrap;
+}
+
+.login-page .button-login .button-text {
+    width: 44px;
+    color: #FFFFFF;
+}
+
+.login-page .button-clear .button-text {
+    width: 45px;
+    color: rgba(255, 255, 255, 0.87);
+}
+
+.login-page .login-error {
+    position: absolute;
+    width: 351px;
+    height: 17px;
+    left: 168px;
+    top: 341px;
+    margin: 0;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 15.992px;
+    color: #F90A0A;
+    white-space: nowrap;
+}
+
+.login-page .login-field input.login-input-error {
+    border-color: #F90A0A;
+    outline-color: #F90A0A;
+}
