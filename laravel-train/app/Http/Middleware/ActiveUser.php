@@ -13,6 +13,10 @@ class ActiveUser
     /** Hủy phiên của tài khoản không hoạt động. */
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->routeIs('error') || $request->is('logout')) {
+            return $next($request);
+        }
+
         $user = $request->user();
 
         if ($user !== null && $user->status !== User::STATUS_ACTIVE) {

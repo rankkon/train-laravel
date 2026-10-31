@@ -1,0 +1,457 @@
+.leave-list-page,
+.leave-list-page * {
+    box-sizing: border-box;
+}
+
+.leave-list-page {
+    min-height: 100vh;
+    margin: 0;
+    background: #FFFFFF;
+    font-family: 'Inter', sans-serif;
+    color: #1E1E1E;
+}
+
+.leave-list-screen {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.leave-list-screen .leave-list {
+    position: fixed;
+    top: 75px;
+    right: 0;
+    bottom: 0;
+    left: 269px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    min-height: 0;
+    padding: 24px;
+}
+
+.leave-list-toolbar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 24px;
+    height: 40px;
+}
+
+.leave-search {
+    display: grid;
+    grid-template-columns: 216px minmax(240px, 360px) 100px;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.leave-search label {
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 140%;
+}
+
+.leave-search input {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    padding: 12px 16px;
+    background: #FFFFFF;
+    border: 1px solid #D9D9D9;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 16px;
+    line-height: 100%;
+    color: #1E1E1E;
+}
+
+.leave-search-button,
+.leave-add {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex: none;
+    gap: 8px;
+    height: 40px;
+    padding: 12px;
+    border: 0;
+    border-radius: 8px;
+    color: #F5F5F5;
+    font: inherit;
+    font-size: 16px;
+    line-height: 100%;
+}
+
+.leave-search-button {
+    width: 100px;
+    background: #FF7700;
+    cursor: pointer;
+}
+
+.leave-search-button:hover {
+    background: #E56A00;
+}
+
+.leave-search-button:active {
+    background: #CC5F00;
+}
+
+.leave-add {
+    width: 140px;
+    background: #007EC6;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.leave-add:hover {
+    background: #006EAD;
+}
+
+.leave-add:active {
+    background: #005F96;
+}
+
+.leave-table-container {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    background: #FFFFFF;
+    border: 1px solid #B9B9B9;
+    border-radius: 4px;
+}
+
+.leave-table {
+    width: 100%;
+    min-width: 1131px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    line-height: 130%;
+    color: #000000;
+}
+
+.leave-table th,
+.leave-table td {
+    height: 36px;
+    padding: 9px 12px;
+    border-right: 1px solid #B9B9B9;
+    border-bottom: 1px solid #B9B9B9;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leave-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #F0F0F0;
+    font-weight: 600;
+}
+
+.leave-table th:nth-child(1) { width: 64px; }
+.leave-table th:nth-child(2) { width: 130px; }
+.leave-table th:nth-child(3) { width: 240px; }
+.leave-table th:nth-child(4) { width: 104px; }
+.leave-table th:nth-child(5) { width: 105px; }
+.leave-table th:nth-child(6) { width: 104px; }
+
+.leave-table th:first-child,
+.leave-table td:first-child {
+    text-overflow: clip;
+}
+
+.leave-table th:last-child,
+.leave-table td:last-child {
+    border-right: 0;
+}
+
+.leave-table td:nth-child(5),
+.leave-title {
+    font-weight: 600;
+}
+
+.leave-status-0 {
+    background: #91FF98;
+}
+
+.leave-status-2 {
+    background: #FFB5B5;
+}
+
+.leave-table td:last-child {
+    padding: 0 12px;
+}
+
+.leave-description {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 35px;
+}
+
+.leave-title {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leave-management-table th:last-child {
+    width: 140px;
+}
+
+.leave-management-table .leave-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.leave-management-table .leave-actions {
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+.leave-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 0 auto;
+}
+
+.leave-actions button,
+.leave-actions a {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex: none;
+    width: 52px;
+    height: 25px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 100%;
+    color: #F5F5F5;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.leave-management-table .leave-actions button,
+.leave-management-table .leave-actions a {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.leave-approve {
+    background: #14AE5C;
+}
+
+.leave-cancel {
+    background: #EC221F;
+}
+
+.leave-actions .leave-edit {
+    background: #FFC107;
+    color: #1E1E1E;
+}
+
+.leave-edit:hover {
+    background: #E0A800;
+}
+
+.leave-edit:active {
+    background: #C69500;
+}
+
+.leave-approve:hover {
+    background: #11994F;
+}
+
+.leave-approve:active {
+    background: #0E8042;
+}
+
+.leave-cancel:hover {
+    background: #D51D1A;
+}
+
+.leave-cancel:active {
+    background: #B81816;
+}
+
+.leave-cancel-dialog {
+    min-height: 284.8px;
+}
+
+.leave-cancel-fields {
+    padding: 35.2px 29.6px 0;
+}
+
+.leave-cancel-fields label {
+    display: block;
+    margin-bottom: 15.2px;
+    font-size: 19.2px;
+    line-height: 23.2px;
+}
+
+.leave-cancel-required {
+    color: #BD0101;
+    font-size: 12.8px;
+    font-weight: 700;
+}
+
+.leave-cancel-reason {
+    display: block;
+    width: 100%;
+    height: 60.8px;
+    padding: 8px;
+    resize: vertical;
+    background: rgba(255, 255, 255, 0.5);
+    border: 0.8px solid #CCCCCC;
+    border-radius: 3.2px;
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.leave-process-error {
+    margin: 0 0 12px;
+    color: #BD0101;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.leave-cancel-reason.leave-field-error {
+    border-color: #BD0101;
+}
+
+.leave-cancel-reason + .leave-process-error {
+    margin: 8px 0 0;
+}
+
+.leave-cancel-dialog .leave-cancel-actions {
+    justify-content: center;
+    padding: 20.8px 29.6px 31.2px;
+}
+
+.leave-cancel-actions .popup-button {
+    flex: none;
+    width: 176px;
+    max-width: 100%;
+}
+
+.leave-pagination {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    font-size: 16px;
+    line-height: 100%;
+}
+
+.leave-pagination > a,
+.leave-pagination > span {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #1E1E1E;
+    text-decoration: none;
+}
+
+.leave-pagination > a:not(.leave-page-previous):not(.leave-page-next):hover {
+    background: #F0F0F0;
+    color: #333333;
+}
+
+.leave-pagination .leave-page-previous {
+    min-width: 113px;
+}
+
+.leave-pagination .leave-page-next {
+    min-width: 84px;
+}
+
+.leave-pagination .leave-page-current {
+    background: #2C2C2C;
+    color: #F5F5F5;
+}
+
+.leave-pagination .leave-page-disabled {
+    color: #757575;
+    opacity: 0.5;
+}
+
+.leave-pagination .leave-page-gap {
+    padding: 8px 16px;
+    font-weight: 700;
+}
+
+@media (max-width: 1200px) {
+    .leave-list-toolbar {
+        height: calc(40px + 12px + 1.4em);
+        align-items: flex-end;
+    }
+
+    .leave-search {
+        grid-template-columns: minmax(0, 360px) 100px;
+    }
+
+    .leave-search label {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 1000px) {
+    .leave-list-screen .leave-list {
+        gap: 12px;
+        padding: 16px;
+    }
+}
+
+@media (max-width: 760px) {
+    .leave-list-toolbar {
+        height: calc(80px + 24px + 1.4em);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .leave-search {
+        flex: none;
+    }
+
+    .leave-add {
+        align-self: flex-end;
+    }
+
+    .leave-pagination {
+        gap: 4px;
+    }
+}

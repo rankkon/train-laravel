@@ -150,7 +150,7 @@ test('successful login rotates the session and restores authentication on anothe
 
     expect(session()->getId())->not->toBe($previousSessionId);
     Auth::forgetGuards();
-    $this->get('/dashboard')->assertOk()->assertViewIs('welcome');
+    $this->get('/dashboard')->assertOk()->assertViewIs('dashboard');
     $this->assertAuthenticatedAs($user);
 });
 

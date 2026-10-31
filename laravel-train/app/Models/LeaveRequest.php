@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +29,17 @@ class LeaveRequest extends Model
     protected $table = 'leave';
 
     public $timestamps = false;
+
+    /** Lọc đơn theo phạm vi phòng ban. */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $query->join('users', 'users.id', '=', 'leave.user_id');
+
+        if ($user->user_type !== User::TYPE_ADMIN) {
+            $query->where('users.department', $user->department);
+        }
+    }
 
     protected function casts(): array
     {

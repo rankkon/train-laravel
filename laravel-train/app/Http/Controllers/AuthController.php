@@ -10,6 +10,21 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    /** Xóa phiên và đăng xuất. */
+    public function logout(Request $request): RedirectResponse
+    {
+        if (! $request->isMethod('post')) {
+            return redirect()->route('login');
+        }
+
+        $request->session()->invalidate();
+        Auth::forgetGuards();
+        Auth::logout();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login', status: 303);
+    }
+
     /** Hiển thị form đăng nhập. */
     public function showLogin(): View
     {
