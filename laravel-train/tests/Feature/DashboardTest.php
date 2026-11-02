@@ -174,7 +174,7 @@ test('dashboard sidebar keeps its active item, logout popup and the approved fut
         ->assertSee('Bạn có chắc chắn muốn đăng xuất?')->assertSee('Cancel')
         ->assertSee('method="post" action="'.route('logout').'"', false);
     $this->get('/users')->assertStatus(303)->assertRedirectToRoute('error', ['code' => 404]);
-    $this->get('/leaves')->assertStatus(303)->assertRedirectToRoute('error', ['code' => 404]);
+    $this->get('/leaves')->assertOk()->assertViewIs('leaves.index');
 });
 
 test('dashboard query failure returns the original error redirect and resets draft confirmations', function (): void {

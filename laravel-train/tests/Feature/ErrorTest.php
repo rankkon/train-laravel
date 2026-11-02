@@ -20,7 +20,7 @@ test('missing web pages show the project error screen instead of the Laravel def
     $this->get(route('error', ['code' => 404]))->assertNotFound()->assertViewIs('error')
         ->assertSee('Có lỗi xảy ra')->assertSee('class="sidebar"', false)
         ->assertSee('css/error.css')->assertDontSee('404 | Not Found');
-})->with(['/users', '/leaves', '/page-not-created', '/users/123/edit', '/page-not-created?code=500']);
+})->with(['/users', '/leaves/create', '/page-not-created', '/users/123/edit', '/page-not-created?code=500']);
 
 test('following a missing sidebar link preserves login and the contents of existing drafts', function (): void {
     $this->createLegacySchema();
@@ -29,7 +29,7 @@ test('following a missing sidebar link preserves login and the contents of exist
     $response = $this->actingAs($user)->withSession([
         'leave_create_draft' => ['title' => 'Keep this draft', 'confirmed' => true],
         'leave_create_save_pending' => true,
-    ])->get('/leaves');
+    ])->get('/users');
 
     $response->assertStatus(303)->assertRedirectToRoute('error', ['code' => 404])
         ->assertSessionHas('leave_create_draft.title', 'Keep this draft')

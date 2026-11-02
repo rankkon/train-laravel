@@ -8,7 +8,7 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    /** Hiển thị đơn theo phòng ban */
+    /** Hiển thị đơn theo phòng ban. */
     public function index(Request $request): View
     {
         $query = LeaveRequest::query()->visibleTo($request->user());
@@ -16,9 +16,13 @@ class DashboardController extends Controller
         $perPage = config('leaveConfig.leaves_per_page');
         $lastPage = max(1, (int) ceil($total / $perPage));
         $requestedPage = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
-        $page = min($lastPage, max(1, $requestedPage === false ? 1 : $requestedPage));
+        if ($requestedPage === false || $requestedPage < 1) {
+            $requestedPage = 1;
+        }
+        $page = min($requestedPage, $lastPage);
 
-        $leaves = $query->orderByDesc('leave.created_at')->orderByDesc('leave.id')
+        $leaves = $query->orderByDesc('leave.created_at')
+            ->orderByDesc('leave.id')
             ->paginate($perPage, [
                 'leave.id', 'leave.leave_type', 'leave.created_at', 'leave.status',
                 'leave.end_date', 'leave.title', 'users.full_name',

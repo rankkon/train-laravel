@@ -4,11 +4,20 @@ namespace Tests;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LogicException;
 
 abstract class TestCase extends BaseTestCase
 {
+    /** Bổ sung hàm SQL cho kiểm thử tìm kiếm trên SQLite. */
+    protected function enableLeaveSearchFunctions(): void
+    {
+        $pdo = DB::connection()->getPdo();
+        $pdo->sqliteCreateFunction('REGEXP_REPLACE', static fn (string $value, string $pattern, string $replacement): string => preg_replace('/'.$pattern.'/u', $replacement, $value), 3);
+        $pdo->sqliteCreateCollation('utf8mb4_unicode_520_ci', static fn (string $left, string $right): int => strcmp($left, $right));
+    }
+
     /** Tạo schema cho kiểm thử. */
     protected function createLegacySchema(): void
     {
