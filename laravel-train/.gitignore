@@ -27,3 +27,17 @@ Homestead.yaml
 Thumbs.db
 NGHIEP_VU.md
 gitflow.txt
+
+/tests/
+/database/factories/
+/database/seeders/
+/phpunit.xml
+/phpunit.xml.dist
+/.env.testing
+/.env.testing.*
+/.pest/
+/.pest.cache/
+/coverage/
+/coverage.xml
+/test-results/
+/storage/framework/testing/
