@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -39,6 +40,23 @@ class User extends Authenticatable
             'created_at' => 'datetime:Y-m-d H:i:s',
             'update_at' => 'datetime:Y-m-d H:i:s',
         ];
+    }
+
+    /** Lấy người duyệt phù hợp với vai trò và phòng ban. */
+    public function leaveApprovers(): Collection
+    {
+        $query = self::query()->where('status', self::STATUS_ACTIVE);
+
+        if ($this->user_type === self::TYPE_USER) {
+            $query->where('user_type', self::TYPE_MANAGER)
+                ->where('department', $this->department);
+        } elseif ($this->user_type === self::TYPE_MANAGER) {
+            $query->where('user_type', self::TYPE_ADMIN);
+        } else {
+            $query->where('user_type', self::TYPE_ADMIN)->whereKey($this->id);
+        }
+
+        return $query->orderBy('id')->get(['id', 'full_name']);
     }
 
     /** Lấy các đơn do người dùng tạo. */

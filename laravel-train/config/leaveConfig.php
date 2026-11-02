@@ -8,6 +8,7 @@ return [
     'cancel_reason_max_bytes' => 65535,
     'attachment_accept' => '.jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf',
     'attachment_max_mb' => 10,
+    'attachment_random_bytes' => 16,
     'title_max_length' => 255,
     'content_max_bytes' => 65535,
     'attachment_name_max_length' => 255,

@@ -117,13 +117,29 @@
 
             <div class="leave-form-actions">
                 @if ($isConfirmation)
-                    <button name="action" value="confirm_save" class="leave-form-next" disabled>Lưu lại</button>
+                    <button name="action" value="confirm_save" class="leave-form-next">Lưu lại</button>
                     <button name="action" value="back" class="leave-form-clear">Quay lại</button>
                 @else
                     <button name="action" value="validate" class="leave-form-next">Tiếp theo</button>
                     <button name="action" value="clear" class="leave-form-clear">Xóa trống</button>
                 @endif
             </div>
+
+            @if ($showSavePopup)
+                <div class="popup-overlay">
+                    <section class="popup-dialog">
+                        <header class="popup-header">
+                            <h2 class="popup-title">{{ __('messages.confirmation_title') }}</h2>
+                            <button name="action" value="cancel_save" class="popup-close"></button>
+                        </header>
+                        <p class="popup-message">{{ __('messages.confirm_save') }}</p>
+                        <div class="popup-actions">
+                            <button name="action" value="save" class="popup-button popup-confirm">OK</button>
+                            <button name="action" value="cancel_save" class="popup-button popup-cancel" autofocus>Cancel</button>
+                        </div>
+                    </section>
+                </div>
+            @endif
         </form>
     </main>
 

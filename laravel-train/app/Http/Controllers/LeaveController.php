@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
-use App\Models\User;
 use App\Services\LeaveDraftService;
 use App\Services\LeaveService;
 use App\Services\LeaveValidationService;
@@ -16,22 +15,11 @@ use Illuminate\Support\Facades\Gate;
 
 class LeaveController extends Controller
 {
-    /** Hiển thị form tạo đơn. */
-    public function create(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation): Response|RedirectResponse
+    /** Xử lý form tạo đơn và các bước xác nhận. */
+    public function create(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService): Response|RedirectResponse
     {
         $user = $request->user();
-        $query = User::query()->where('status', User::STATUS_ACTIVE);
-
-        if ($user->user_type === User::TYPE_USER) {
-            $query->where('user_type', User::TYPE_MANAGER)
-                ->where('department', $user->department);
-        } elseif ($user->user_type === User::TYPE_MANAGER) {
-            $query->where('user_type', User::TYPE_ADMIN);
-        } else {
-            $query->where('user_type', User::TYPE_ADMIN)->whereKey($user->id);
-        }
-
-        $approvers = $query->orderBy('id')->get(['id', 'full_name']);
+        $approvers = $user->leaveApprovers();
         $leaveTypes = config('leaveConfig.leave_types');
         $defaultValues = $draftService->emptyValues();
         $defaultValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id;
@@ -45,6 +33,7 @@ class LeaveController extends Controller
         $attachment = $state['attachment'];
         $session = $request->session();
         $isConfirmation = false;
+        $showSavePopup = false;
         $showExitPopup = false;
         $exitDestination = '';
         $exitMessage = __('messages.confirm_exit');
@@ -169,6 +158,36 @@ class LeaveController extends Controller
                         'user_id' => $user->id, 'leave_id' => 0, 'values' => $values,
                         'confirmed' => $isConfirmation, 'errors' => $errors,
                     ]);
+                } elseif (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) {
+                    abort_unless($session->get('leave_create_draft.confirmed'), 400);
+
+                    if ($action === 'cancel_save') {
+                        $isConfirmation = true;
+                        $session->forget('leave_create_save_pending');
+                    } elseif ($action === 'confirm_save') {
+                        $isConfirmation = true;
+                        $session->put('leave_create_save_pending', true);
+                        $showSavePopup = true;
+                    } else {
+                        abort_unless($session->get('leave_create_save_pending'), 400);
+
+                        try {
+                            $errors = $leaveService->save($user->id, $values, $attachment);
+                        } catch (AuthenticationException) {
+                            Auth::logout();
+
+                            return redirect()->route('login', status: 303);
+                        }
+
+                        if ($errors !== []) {
+                            $session->forget('leave_create_save_pending');
+                            $session->put('leave_create_draft.confirmed', false);
+                        } else {
+                            $draftService->clear($session);
+
+                            return redirect()->route('leaves.index', status: 303);
+                        }
+                    }
                 } else {
                     abort(400);
                 }
@@ -186,6 +205,7 @@ class LeaveController extends Controller
             'showExitPopup' => $showExitPopup, 'exitDestination' => $exitDestination,
             'exitMessage' => $exitMessage,
             'isConfirmation' => $isConfirmation, 'minimumDate' => $defaultValues['start_date'],
+            'showSavePopup' => $showSavePopup,
         ], $status);
     }
 

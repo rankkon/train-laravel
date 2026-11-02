@@ -30,6 +30,14 @@ return [
 
     'disks' => [
 
+        'leave_attachments' => [
+            'driver' => 'local',
+            'root' => env('LEAVE_ATTACHMENTS_ROOT'),
+            'lazy_root_creation' => true,
+            'serve' => false,
+            'throw' => true,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

@@ -7,9 +7,102 @@ use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class LeaveService
 {
+    public function __construct(private LeaveValidationService $validation) {}
+
+    /** Lưu đơn mới và file đính kèm trong transaction. */
+    public function save(int $userId, array $values, ?array $attachment): array
+    {
+        $fullPath = null;
+
+        try {
+            DB::transaction(function () use ($userId, $values, $attachment, &$fullPath): void {
+                $users = User::query()
+                    ->whereIn('id', [$userId, (int) $values['approver_id']])
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+                $currentUser = $users->get($userId);
+                if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
+                    throw new AuthenticationException;
+                }
+
+                $errors = $this->validation->fields(
+                    $values, $currentUser->leaveApprovers(), config('leaveConfig.leave_types'), now()->toDateString(),
+                );
+                if (! $attachment || (int) $attachment['user_id'] !== $userId) {
+                    $fileError = __('messages.attachment_select_again');
+                } else {
+                    $fileError = $this->validation->attachment($attachment['name'], $attachment['data']);
+                }
+                if ($fileError !== '') {
+                    $errors['attachment'] = $fileError;
+                }
+                if ($errors !== []) {
+                    throw ValidationException::withMessages($errors);
+                }
+
+                $disk = Storage::disk('leave_attachments');
+                if (! is_dir($disk->path(''))) {
+                    throw new RuntimeException(__('messages.upload_directory_missing'));
+                }
+
+                $extension = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
+                $filename = bin2hex(random_bytes(config('leaveConfig.attachment_random_bytes'))).'.'.$extension;
+                $fullPath = $disk->path($filename);
+                $writtenBytes = @file_put_contents($fullPath, $attachment['data'], LOCK_EX);
+                if ($writtenBytes !== strlen($attachment['data'])) {
+                    throw new RuntimeException(__('messages.attachment_write_failed'));
+                }
+
+                LeaveRequest::query()->insert([
+                    'user_id' => $userId,
+                    'title' => $values['title'], 'content' => $values['content'],
+                    'approver_id' => (int) $values['approver_id'],
+                    'leave_type' => (int) $values['leave_type'],
+                    'start_date' => $values['start_date'], 'end_date' => $values['end_date'],
+                    'status' => LeaveRequest::STATUS_NEW,
+                    'created_at' => now()->format('Y-m-d H:i:s'),
+                    'attachment_original_name' => $attachment['name'],
+                    'attachment_path' => 'uploads/'.$filename,
+                ]);
+            });
+        } catch (ValidationException $error) {
+            return array_map(fn (array $messages): string => $messages[0], $error->errors());
+        } catch (AuthenticationException $error) {
+            throw $error;
+        } catch (Throwable $error) {
+            try {
+                $connection = DB::connection();
+                $pdo = $connection->getPdo();
+                if ($pdo->inTransaction()) {
+                    if ($connection->transactionLevel() > 0) {
+                        $connection->rollBack();
+                    } else {
+                        $pdo->rollBack();
+                    }
+                }
+            } catch (Throwable) {
+                Log::error(__('messages.leave_rollback_failed'));
+            }
+            if ($fullPath !== null && is_file($fullPath) && ! @unlink($fullPath)) {
+                Log::error(__('messages.failed_attachment_delete'));
+            }
+
+            throw new RuntimeException(__('messages.leave_save_failed', ['error' => $error->getMessage()]), 0, $error);
+        }
+
+        return [];
+    }
+
     /** Duyệt hoặc hủy đơn trong transaction. */
     public function process(int $userId, int $leaveId, string $action, string $reason): void
     {
