@@ -41,6 +41,28 @@ class LeaveRequest extends Model
         }
     }
 
+    /** Tìm đơn theo người tạo, tiêu đề hoặc loại đơn. */
+    #[Scope]
+    protected function matching(Builder $query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
+        $comparison = "REGEXP_REPLACE(%s, ?, '') COLLATE utf8mb4_unicode_520_ci LIKE REGEXP_REPLACE(?, ?, '') ESCAPE '!'";
+        $query->where(function (Builder $matches) use ($pattern, $comparison): void {
+            $matches->whereRaw(sprintf($comparison, 'users.full_name'), ['\\p{M}', $pattern, '\\p{M}'])
+                ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}'])
+                ->orWhere('leave.leave_type', 0);
+            foreach (config('leaveConfig.leave_types') as $type => $name) {
+                $matches->orWhereRaw('(`leave`.leave_type = ? AND '.sprintf($comparison, 'CAST(? AS CHAR)').')', [
+                    $type, $name, '\\p{M}', $pattern, '\\p{M}',
+                ]);
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [

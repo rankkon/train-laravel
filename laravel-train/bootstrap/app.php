@@ -22,15 +22,25 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [ActiveUser::class], remove: [PreventRequestForgery::class]);
         $middleware->redirectGuestsTo(fn (): string => route('login'));
         $middleware->redirectUsersTo(fn (): string => route('dashboard'));
-        $middleware->trimStrings(except: [fn (Request $request): bool => $request->is('login', 'error')]);
-        $middleware->convertEmptyStringsToNull(except: [fn (Request $request): bool => $request->is('login', 'error')]);
+        $middleware->trimStrings(except: [
+            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions'),
+        ]);
+        $middleware->convertEmptyStringsToNull(except: [
+            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions'),
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $exception, Request $request): ?RedirectResponse {
-            if ($request->routeIs('error') || $request->expectsJson() || $request->is('api/*')
-                || ! $request->hasSession()
-                || ! in_array('web', $request->route()?->gatherMiddleware() ?? [], true)
-                || $exception instanceof AuthenticationException
+            if ($request->routeIs('error') || $request->expectsJson() || $request->is('api/*')) {
+                return null;
+            }
+
+            if (! $request->hasSession()
+                || ! in_array('web', $request->route()?->gatherMiddleware() ?? [], true)) {
+                return null;
+            }
+
+            if ($exception instanceof AuthenticationException
                 || $exception instanceof ValidationException
                 || $exception instanceof HttpResponseException) {
                 return null;

@@ -11,8 +11,11 @@ class ErrorController extends Controller
     public function show(Request $request): Response
     {
         $code = $request->query('code');
-        $status = is_string($code) && in_array($code, ['400', '403', '404', '405', '409', '500'], true)
-            ? (int) $code : 500;
+        $status = 500;
+        if (is_string($code) && in_array($code, ['400', '403', '404', '405', '409', '500'], true)) {
+            $status = (int) $code;
+        }
+
         $response = response()->view('error', [], $status)->header('Cache-Control', 'no-store');
 
         if ($status === 405) {

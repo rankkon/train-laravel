@@ -20,7 +20,7 @@
             <a href="{{ url('/users') }}" class="menu-item{{ request()->routeIs('users.*') ? ' menu-active' : '' }}">
                 <span class="menu-label">Quản lý người dùng</span>
             </a>
-            <a href="{{ url('/leaves') }}" class="menu-item{{ request()->routeIs('leaves.*') ? ' menu-active' : '' }}">
+            <a href="{{ route('leaves.index') }}" class="menu-item{{ request()->routeIs('leaves.*') || request()->is('leaves') ? ' menu-active' : '' }}">
                 <span class="menu-label">Quản lý đơn</span>
             </a>
         @endif

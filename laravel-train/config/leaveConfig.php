@@ -5,6 +5,7 @@ use App\Models\LeaveRequest;
 return [
     'leaves_per_page' => 15,
     'pagination_nearby_pages' => 2,
+    'cancel_reason_max_bytes' => 65535,
     'leave_types' => [
         LeaveRequest::TYPE_NGHIPHEP => 'Đơn nghỉ phép',
         LeaveRequest::TYPE_VATTU => 'Đơn cấp vật tư máy móc',
