@@ -22,7 +22,7 @@
                 <input type="text" id="leave-search" name="q" value="{{ $search }}">
                 <button class="leave-search-button">Tìm kiếm</button>
             </form>
-            <a href="{{ url('/leaves/create') }}" class="leave-add">Thêm mới đơn</a>
+            <a href="{{ route('leaves.create') }}" class="leave-add">Thêm mới đơn</a>
         </div>
 
         <div class="leave-table-container">

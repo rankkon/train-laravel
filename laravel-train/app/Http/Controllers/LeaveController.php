@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
+use App\Models\User;
+use App\Services\LeaveDraftService;
 use App\Services\LeaveService;
+use App\Services\LeaveValidationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +16,179 @@ use Illuminate\Support\Facades\Gate;
 
 class LeaveController extends Controller
 {
+    /** Hiển thị form tạo đơn. */
+    public function create(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation): Response|RedirectResponse
+    {
+        $user = $request->user();
+        $query = User::query()->where('status', User::STATUS_ACTIVE);
+
+        if ($user->user_type === User::TYPE_USER) {
+            $query->where('user_type', User::TYPE_MANAGER)
+                ->where('department', $user->department);
+        } elseif ($user->user_type === User::TYPE_MANAGER) {
+            $query->where('user_type', User::TYPE_ADMIN);
+        } else {
+            $query->where('user_type', User::TYPE_ADMIN)->whereKey($user->id);
+        }
+
+        $approvers = $query->orderBy('id')->get(['id', 'full_name']);
+        $leaveTypes = config('leaveConfig.leave_types');
+        $defaultValues = $draftService->emptyValues();
+        $defaultValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id;
+        $defaultValues['leave_type'] = (string) array_key_first($leaveTypes);
+        $defaultValues['start_date'] = now()->toDateString();
+        $defaultValues['end_date'] = $defaultValues['start_date'];
+
+        $state = $draftService->prepare($request, $defaultValues);
+        $values = $state['values'];
+        $errors = $state['errors'];
+        $attachment = $state['attachment'];
+        $session = $request->session();
+        $isConfirmation = false;
+        $showExitPopup = false;
+        $exitDestination = '';
+        $exitMessage = __('messages.confirm_exit');
+        $status = 200;
+        $exitActions = [
+            'exit_dashboard' => 'dashboard', 'exit_users' => 'users',
+            'exit_list' => 'leaves', 'exit_logout' => 'logout',
+        ];
+        $exitUrls = [
+            'dashboard' => route('dashboard'), 'users' => url('/users'),
+            'leaves' => route('leaves.index'), 'logout' => route('logout'),
+        ];
+
+        if ($request->isMethod('post')) {
+            $action = $request->post('action', 'validate');
+            if (! is_string($action)) {
+                $action = '';
+            }
+
+            if ($request->request->count() === 0 && $request->files->count() === 0
+                && (int) $request->server('CONTENT_LENGTH', 0) > 0) {
+                $status = 400;
+                $errors['form'] = __('messages.post_data_unreadable', ['size' => config('leaveConfig.attachment_max_mb')]);
+            } elseif (isset($exitActions[$action])) {
+                $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
+                $exitDestination = $exitActions[$action];
+                $session->forget(['leave_create_save_pending', 'leave_create_exit']);
+                $uploadError = '';
+                $hasInvalidValues = false;
+
+                if (! $isConfirmation) {
+                    $form = $draftService->readValues($request->post());
+                    $values = $form['values'];
+                    $hasInvalidValues = $form['errors'] !== [];
+                    $errors = array_replace($errors, $form['errors']);
+
+                    $upload = $draftService->readAttachment($request, $attachment, true);
+                    $attachment = $upload['attachment'];
+                    $uploadError = $upload['error'];
+                    if ($attachment) {
+                        $session->put('leave_create_attachment', $attachment);
+                    } else {
+                        $session->forget('leave_create_attachment');
+                    }
+                    if ($uploadError !== '') {
+                        $errors['attachment'] = $uploadError;
+                    }
+                    $session->put('leave_create_draft', [
+                        'user_id' => $user->id, 'leave_id' => 0, 'values' => $values,
+                        'confirmed' => false, 'errors' => $errors,
+                    ]);
+                }
+
+                if ($draftService->hasChanges($values, $attachment, $state['initial'])
+                    || $uploadError !== '' || $hasInvalidValues) {
+                    $session->put('leave_create_exit', $exitDestination);
+                    $showExitPopup = true;
+                    if ($exitDestination === 'logout') {
+                        $exitMessage = __('messages.confirm_logout_with_changes');
+                    }
+                } elseif ($exitDestination === 'logout') {
+                    $session->put('leave_create_exit', $exitDestination);
+                    $showExitPopup = true;
+                    $exitMessage = __('messages.confirm_logout');
+                } else {
+                    $draftService->clear($session);
+
+                    return redirect($exitUrls[$exitDestination], 303);
+                }
+            } elseif ($action === 'confirm_exit' || $action === 'cancel_exit') {
+                $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
+                abort_if(! $session->has('leave_create_exit')
+                    || ($action === 'confirm_exit' && $session->get('leave_create_exit') === 'logout'), 400);
+                $exitDestination = $session->get('leave_create_exit');
+                $session->forget('leave_create_exit');
+                if ($action === 'confirm_exit') {
+                    $draftService->clear($session);
+
+                    return redirect($exitUrls[$exitDestination], 303);
+                }
+            } else {
+                $session->forget('leave_create_exit');
+                if ($action === 'clear') {
+                    $draftService->clear($session);
+                    $session->put('leave_create_initial', $state['initial']);
+                    $session->put('leave_create_draft', [
+                        'user_id' => $user->id, 'leave_id' => 0,
+                        'values' => $defaultValues, 'confirmed' => false,
+                    ]);
+
+                    return redirect()->route('leaves.create', status: 303);
+                }
+                if ($action === 'back') {
+                    $session->forget('leave_create_save_pending');
+                    $session->put('leave_create_draft.confirmed', false);
+                } elseif ($action === 'validate') {
+                    $session->forget('leave_create_save_pending');
+                    $form = $draftService->readValues($request->post());
+                    $values = $form['values'];
+                    $values['title'] = trim($values['title']);
+                    $errors = $form['errors'];
+
+                    $fieldErrors = $validation->fields($values, $approvers, $leaveTypes, $defaultValues['start_date']);
+                    foreach ($fieldErrors as $field => $message) {
+                        if (! isset($errors[$field])) {
+                            $errors[$field] = $message;
+                        }
+                    }
+
+                    $upload = $draftService->readAttachment($request, $attachment);
+                    $attachment = $upload['attachment'];
+                    if ($attachment) {
+                        $session->put('leave_create_attachment', $attachment);
+                    } else {
+                        $session->forget('leave_create_attachment');
+                    }
+                    if ($upload['error'] !== '') {
+                        $errors['attachment'] = $upload['error'];
+                    }
+                    $isConfirmation = $errors === [];
+                    $session->put('leave_create_draft', [
+                        'user_id' => $user->id, 'leave_id' => 0, 'values' => $values,
+                        'confirmed' => $isConfirmation, 'errors' => $errors,
+                    ]);
+                } else {
+                    abort(400);
+                }
+            }
+        }
+
+        $displayValues = [];
+        foreach ($values as $field => $value) {
+            $displayValues[$field] = mb_check_encoding($value, 'UTF-8') ? $value : '';
+        }
+
+        return response()->view('leaves.form', [
+            'approvers' => $approvers, 'leaveTypes' => $leaveTypes,
+            'values' => $displayValues, 'errors' => $errors, 'attachment' => $attachment,
+            'showExitPopup' => $showExitPopup, 'exitDestination' => $exitDestination,
+            'exitMessage' => $exitMessage,
+            'isConfirmation' => $isConfirmation, 'minimumDate' => $defaultValues['start_date'],
+        ], $status);
+    }
+
     /** Hiển thị danh sách đơn. */
     public function index(Request $request): Response
     {

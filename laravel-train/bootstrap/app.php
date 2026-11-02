@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Middleware\ActiveUser;
+use App\Http\Middleware\PostSize;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Middleware\ValidatePostSize;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -19,14 +21,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->replace(ValidatePostSize::class, PostSize::class);
         $middleware->web(append: [ActiveUser::class], remove: [PreventRequestForgery::class]);
         $middleware->redirectGuestsTo(fn (): string => route('login'));
         $middleware->redirectUsersTo(fn (): string => route('dashboard'));
         $middleware->trimStrings(except: [
-            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions'),
+            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions', 'leaves/create'),
         ]);
         $middleware->convertEmptyStringsToNull(except: [
-            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions'),
+            fn (Request $request): bool => $request->is('login', 'error', 'leaves', 'leaves/actions', 'leaves/create'),
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -25,6 +25,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');
+    Route::get('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create');
+    Route::post('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create.submit');
+    Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves/create', function (): void {
+        abort(405);
+    });
     Route::post('/leaves/actions', [LeaveController::class, 'handleListAction'])->name('leaves.actions');
     Route::post('/leaves', [LeaveController::class, 'handleListAction']);
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves', function (): void {
