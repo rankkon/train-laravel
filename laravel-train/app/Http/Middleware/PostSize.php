@@ -12,7 +12,7 @@ class PostSize
     // Kiểm tra kích thước dữ liệu POST trước khi tiếp tục request
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->isMethod('post') && $request->is('leaves/create')) { // Bỏ qua kiểm tra kích thước dữ liệu POST khi tạo đơn
+        if ($request->isMethod('post') && $request->is('leaves/create', 'leaves/*/edit')) { // Bỏ qua kiểm tra kích thước dữ liệu POST khi tạo đơn
             return $next($request);
         }
 

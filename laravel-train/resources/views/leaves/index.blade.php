@@ -63,7 +63,7 @@
                                             <button name="action" value="open_approve" class="leave-approve" title="Duyệt">✓</button>
                                         @endif
                                         @if ($canEdit)
-                                            <a href="{{ url('/leaves/'.$leave->id.'/edit') }}" class="leave-edit" title="Sửa">✎</a>
+                                            <a href="{{ route('leaves.edit', ['leave' => $leave->id]) }}" class="leave-edit" title="Sửa">✎</a>
                                         @endif
                                         @if ($canProcess)
                                             <button name="action" value="open_cancel" class="leave-cancel" title="Hủy">×</button>
