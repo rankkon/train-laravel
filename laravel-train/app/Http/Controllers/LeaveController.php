@@ -201,17 +201,17 @@ class LeaveController extends Controller
         }
 
         return response()->view('leaves.form', [
-            'approvers' => $approvers,
-            'leaveTypes' => $leaveTypes,
-            'values' => $displayValues,
-            'errors' => $errors,
-            'attachment' => $attachment,
-            'showExitPopup' => $showExitPopup,
-            'exitDestination' => $exitDestination,
-            'exitMessage' => $exitMessage,
+            'approvers'      => $approvers,
+            'leaveTypes'     => $leaveTypes,
+            'values'         => $displayValues,
+            'errors'         => $errors,
+            'attachment'     => $attachment,
+            'showExitPopup'  => $showExitPopup,
+            'exitDestination'=> $exitDestination,
+            'exitMessage'    => $exitMessage,
             'isConfirmation' => $isConfirmation,
-            'minimumDate' => $defaultValues['start_date'],
-            'showSavePopup' => $showSavePopup,
+            'minimumDate'    => $defaultValues['start_date'],
+            'showSavePopup'  => $showSavePopup,
         ], $status);
     }
 
@@ -323,15 +323,15 @@ class LeaveController extends Controller
             ->appends(['q' => $search]);
 
         return response()->view('leaves.index', [
-            'leaves' => $leaves,
-            'search' => $search,
-            'actionUrl' => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
-            'leaveTypes' => LeaveConstants::LEAVE_TYPES,
-            'leaveStatuses' => LeaveConstants::LEAVE_STATUSES,
-            'processPopup' => $processPopup,
+            'leaves'         => $leaves,
+            'search'         => $search,
+            'actionUrl'      => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
+            'leaveTypes'     => LeaveConstants::LEAVE_TYPES,
+            'leaveStatuses'  => LeaveConstants::LEAVE_STATUSES,
+            'processPopup'   => $processPopup,
             'processLeaveId' => $processLeaveId,
-            'cancelReason' => $cancelReason,
-            'processErrors' => $processErrors,
+            'cancelReason'   => $cancelReason,
+            'processErrors'  => $processErrors,
         ], $status);
     }
 

@@ -12,12 +12,12 @@ class LeaveValidationService
     public function fields(array $values, Collection $approvers, array $leaveTypes, string $minimumDate): array
     {
         $messages = [
-            'title' => $this->title($values['title']),
-            'content' => $this->content($values['content']),
+            'title'       => $this->title($values['title']),
+            'content'     => $this->content($values['content']),
             'approver_id' => $this->approver($values['approver_id'], $approvers),
-            'leave_type' => $this->type($values['leave_type'], $leaveTypes),
-            'start_date' => $this->date($values['start_date'], 'Ngày bắt đầu', $minimumDate),
-            'end_date' => $this->date($values['end_date'], 'Ngày kết thúc', $minimumDate),
+            'leave_type'  => $this->type($values['leave_type'], $leaveTypes),
+            'start_date'  => $this->date($values['start_date'], 'Ngày bắt đầu', $minimumDate),
+            'end_date'    => $this->date($values['end_date'], 'Ngày kết thúc', $minimumDate),
         ];
         $errors = [];
         foreach ($messages as $field => $message) {

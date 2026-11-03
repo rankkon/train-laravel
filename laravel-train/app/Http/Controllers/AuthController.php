@@ -29,9 +29,9 @@ class AuthController extends Controller
     public function showLogin(): View
     {
         return view('login', [
-            'username' => '',
-            'usernameError' => false,
-            'passwordError' => false,
+            'username'          => '',
+            'usernameError'     => false,
+            'passwordError'     => false,
             'loginErrorMessage' => __('messages.login_failed'),
         ]); // Dữ liệu mặc định cho form đăng nhập
     }

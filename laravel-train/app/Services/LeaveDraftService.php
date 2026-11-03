@@ -15,8 +15,12 @@ class LeaveDraftService
     public function emptyValues(): array
     {
         return [
-            'title' => '', 'content' => '', 'approver_id' => '',
-            'leave_type' => '', 'start_date' => '', 'end_date' => '',
+            'title'       => '', 
+            'content'     => '', 
+            'approver_id' => '',
+            'leave_type'  => '', 
+            'start_date'  => '', 
+            'end_date'    => '',
         ];
     }
 
@@ -51,18 +55,23 @@ class LeaveDraftService
 
         if (! $session->has('leave_create_initial')) {
             $session->put('leave_create_initial', [
-                'values' => $values,
+                'values'     => $values,
                 'attachment' => $this->attachmentFingerprint($attachment),
             ]);
             $session->put('leave_create_draft', [
-                'user_id' => $userId, 'leave_id' => 0, 'values' => $values,
-                'confirmed' => false, 'errors' => [],
+                'user_id'   => $userId,
+                'leave_id'  => 0, 
+                'values'    => $values,
+                'confirmed' => false, 
+                'errors'    => [],
             ]);
         }
 
         return [
-            'values' => $values, 'errors' => $errors, 'attachment' => $attachment,
-            'initial' => $session->get('leave_create_initial'),
+            'values'     => $values, 
+            'errors'     => $errors, 
+            'attachment' => $attachment,
+            'initial'    => $session->get('leave_create_initial'),
         ];
     }
 
@@ -137,9 +146,9 @@ class LeaveDraftService
             }
         }
         $result['attachment'] = [
-            'user_id' => $request->user()->id,
-            'name' => $name,
-            'data' => $data,
+            'user_id'   => $request->user()->id,
+            'name'      => $name,
+            'data'      => $data,
             'temporary' => $keepTemporary,
         ];
 
