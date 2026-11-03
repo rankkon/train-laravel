@@ -91,21 +91,21 @@ class LeaveService
                 }
 
                 $changes = [
-                    'title' => $values['title'],
-                    'content' => $values['content'],
-                    'approver_id' => (int) $values['approver_id'],
-                    'leave_type' => (int) $values['leave_type'],
-                    'start_date' => $values['start_date'],
-                    'end_date' => $values['end_date'],
+                    'title'                    => $values['title'],
+                    'content'                  => $values['content'],
+                    'approver_id'              => (int) $values['approver_id'],
+                    'leave_type'               => (int) $values['leave_type'],
+                    'start_date'               => $values['start_date'],
+                    'end_date'                 => $values['end_date'],
                     'attachment_original_name' => $attachment['name'],
-                    'attachment_path' => $attachmentPath,
+                    'attachment_path'          => $attachmentPath,
                 ];
                 if ($leaveId > 0) {
                     LeaveRequest::query()->whereKey($leaveId)->update($changes);
                 } else {
                     LeaveRequest::query()->insert($changes + [
-                        'user_id' => $userId,
-                        'status' => LeaveRequest::STATUS_NEW,
+                        'user_id'    => $userId,
+                        'status'     => LeaveRequest::STATUS_NEW,
                         'created_at' => now()->format('Y-m-d H:i:s'),
                     ]);
                 }
@@ -213,14 +213,14 @@ class LeaveService
                 $processedAt = now();
                 if ($action === 'approve') {
                     $changes = [
-                        'status' => LeaveRequest::STATUS_APPROVED,
-                        'update_at' => $processedAt->format('Y-m-d H:i:s'),
+                        'status'      => LeaveRequest::STATUS_APPROVED,
+                        'update_at'   => $processedAt->format('Y-m-d H:i:s'),
                         'approved_at' => $processedAt->toDateString(),
                     ];
                 } else {
                     $changes = [
-                        'status' => LeaveRequest::STATUS_CANCELLED,
-                        'delete_at' => $processedAt->format('Y-m-d H:i:s'),
+                        'status'        => LeaveRequest::STATUS_CANCELLED,
+                        'delete_at'     => $processedAt->format('Y-m-d H:i:s'),
                         'cancel_reason' => $reason,
                     ];
                 }

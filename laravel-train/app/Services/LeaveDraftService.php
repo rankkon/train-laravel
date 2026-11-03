@@ -74,19 +74,19 @@ class LeaveDraftService
                 'attachment' => $this->attachmentFingerprint($attachment),
             ]);
             $session->put('leave_create_draft', [
-                'user_id' => $userId,
-                'leave_id' => $leaveId,
-                'values' => $values,
+                'user_id'   => $userId,
+                'leave_id'  => $leaveId,
+                'values'    => $values,
                 'confirmed' => false,
-                'errors' => [],
+                'errors'    => [],
             ]);
         }
 
         return [
-            'values' => $values,
-            'errors' => $errors,
+            'values'     => $values,
+            'errors'     => $errors,
             'attachment' => $attachment,
-            'initial' => $session->get('leave_create_initial'),
+            'initial'    => $session->get('leave_create_initial'),
         ];
     }
 
@@ -161,9 +161,9 @@ class LeaveDraftService
             }
         }
         $result['attachment'] = [
-            'user_id' => $request->user()->id,
-            'name' => $name,
-            'data' => $data,
+            'user_id'   => $request->user()->id,
+            'name'      => $name,
+            'data'      => $data,
             'temporary' => $keepTemporary,
         ];
 
