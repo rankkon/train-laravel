@@ -1,0 +1,381 @@
+.leave-create-page {
+    min-height: 100vh;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background: #FFFFFF;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #000000;
+}
+
+.leave-create,
+.leave-create * {
+    box-sizing: border-box;
+}
+
+.leave-create-page .leave-create {
+    position: fixed;
+    top: 75px;
+    right: 0;
+    bottom: 0;
+    left: 269px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: 24px;
+}
+
+.leave-form-title {
+    flex: none;
+    margin: 0;
+    font: inherit;
+    line-height: 20px;
+}
+
+.leave-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    margin: 0;
+}
+
+.leave-form-fields {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 20px;
+}
+
+.leave-form-field {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 450px);
+    align-items: start;
+    column-gap: 12px;
+    margin-bottom: 12px;
+}
+
+.leave-form-field:last-child {
+    margin-bottom: 0;
+}
+
+.leave-form-field > label {
+    padding-top: 6px;
+    line-height: 19px;
+}
+
+.leave-form .required-marker {
+    margin-left: 4px;
+    color: #BD0101;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.leave-form-field input,
+.leave-form-field textarea,
+.leave-form-field select {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    margin: 0;
+    padding: 5px 10px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.5);
+    font: inherit;
+    line-height: 20px;
+    color: #000000;
+}
+
+.leave-form-content textarea {
+    height: 72px;
+    width: 100%;
+    min-height: 52px;
+    resize: vertical;
+}
+
+.leave-select-control {
+    position: relative;
+    width: 220px;
+    max-width: 100%;
+    height: 32px;
+}
+
+.leave-form-type .leave-select-control {
+    width: 300px;
+}
+
+.leave-select-control select {
+    appearance: none;
+    padding: 5px 32px 5px 10px;
+    background: #FFFFFF;
+    color: #1E1E1E;
+}
+
+.leave-select-control::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    background: #1E1E1E;
+    clip-path: polygon(25% 30%, 50% 55%, 75% 30%, 82.5% 37.5%, 50% 70%, 17.5% 37.5%);
+    pointer-events: none;
+}
+
+.leave-date-control {
+    position: relative;
+    width: 170px;
+    max-width: 100%;
+}
+
+.leave-form-date input::-webkit-calendar-picker-indicator {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.leave-file-control {
+    position: relative;
+    width: 220px;
+    max-width: 100%;
+    height: 32px;
+}
+
+.leave-file-control input {
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.leave-file-control input::file-selector-button {
+    display: none;
+}
+
+.leave-file-control input:invalid {
+    color: transparent;
+}
+
+.leave-file-name {
+    position: absolute;
+    top: 50%;
+    right: 36px;
+    left: 11px;
+    transform: translateY(-50%);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 20px;
+    pointer-events: none;
+}
+
+.leave-file-control input:valid ~ .leave-file-name {
+    display: none;
+}
+
+.leave-upload-icon {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.leave-upload-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #000000;
+    clip-path: polygon(12px 4px, 18px 10px, 16.5px 11.5px, 13px 8px, 13px 16px, 11px 16px, 11px 8px, 7.5px 11.5px, 6px 10px);
+}
+
+.leave-upload-icon::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    left: 4px;
+    height: 6px;
+    border: 2px solid #000000;
+    border-top: 0;
+    border-radius: 0 0 2px 2px;
+}
+
+.leave-form-field > p {
+    grid-column: 2;
+    margin: 6px 0 0;
+    overflow-wrap: anywhere;
+    line-height: 20px;
+}
+
+.leave-form .leave-input-error {
+    border-color: #F90A0A;
+    outline-color: #F90A0A;
+}
+
+.leave-form-error {
+    margin: 0 0 12px;
+    color: #F90A0A;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.leave-form-actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 0;
+    padding-left: 132px;
+}
+
+.leave-form-actions button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    width: 220px;
+    max-width: 100%;
+    min-width: 0;
+    height: 50px;
+    padding: 4px 24px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 19px;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.leave-form-next {
+    background: #007EC6;
+}
+
+.leave-form-clear {
+    background: #E2005C;
+}
+
+.leave-form-next:hover {
+    background: #006EAD;
+}
+
+.leave-form-next:active {
+    background: #005F96;
+}
+
+.leave-form-clear:hover {
+    background: #C60050;
+}
+
+.leave-form-clear:active {
+    background: #AA0045;
+}
+
+.leave-form-confirm input:disabled,
+.leave-form-confirm textarea:disabled,
+.leave-form-confirm select:disabled {
+    background-color: rgba(204, 204, 204, 0.5);
+    color: #000000;
+    opacity: 1;
+}
+
+.leave-form-confirm select:disabled {
+    color: #1E1E1E;
+}
+
+.leave-form-confirm textarea:disabled {
+    resize: none;
+}
+
+.leave-form-confirm input[type="date"] {
+    padding-right: 36px;
+}
+
+.leave-form-confirm input::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.leave-calendar-icon {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(#000000, #000000) 7px 3px / 2px 4px no-repeat,
+        linear-gradient(#000000, #000000) 15px 3px / 2px 4px no-repeat;
+    pointer-events: none;
+}
+
+.leave-calendar-icon::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 3px;
+    bottom: 2px;
+    left: 3px;
+    border: 2px solid #000000;
+    border-radius: 2px;
+    background: linear-gradient(#000000, #000000) 0 2px / 100% 2px no-repeat;
+}
+
+.leave-calendar-icon::after {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 7px;
+    width: 2px;
+    height: 2px;
+    background: #000000;
+    box-shadow: 4px 0 #000000, 8px 0 #000000,
+        0 4px #000000, 4px 4px #000000, 8px 4px #000000;
+}
+
+.leave-confirm-attachment {
+    min-height: 32px;
+    padding: 6px 0;
+    color: #00AAFF;
+    font-size: 14px;
+    line-height: 20px;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1000px) {
+    .leave-create-page .leave-create {
+        padding: 16px;
+    }
+
+    .leave-form-actions {
+        padding-left: 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .leave-form-field {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 6px;
+    }
+
+    .leave-form-field > label {
+        padding-top: 0;
+    }
+
+    .leave-form-field > p {
+        grid-column: 1;
+        margin-top: 4px;
+    }
+}

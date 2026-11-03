@@ -7,7 +7,7 @@ use App\Models\User;
 
 class LeaveRequestPolicy
 {
-    /** Kiểm tra quyền duyệt hoặc hủy đơn. */
+    // Kiểm tra quyền duyệt hoặc hủy đơn
     public function process(User $user, LeaveRequest $leave): bool
     {
         if ($user->status !== User::STATUS_ACTIVE || $leave->status !== LeaveRequest::STATUS_NEW) {
@@ -23,7 +23,7 @@ class LeaveRequestPolicy
             && $leave->user?->department === $user->department;
     }
 
-    /** Kiểm tra quyền sửa đơn. */
+    // Kiểm tra quyền sửa đơn
     public function update(User $user, LeaveRequest $leave): bool
     {
         return $user->status === User::STATUS_ACTIVE

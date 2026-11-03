@@ -10,16 +10,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ActiveUser
 {
-    /** Hủy phiên của tài khoản không hoạt động. */
+    // Kiểm tra tài khoản còn hoạt động trước khi tiếp tục request
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->routeIs('error') || $request->is('logout')) {
-            return $next($request);
+        if ($request->is('logout')) {
+            return $next($request); // Bỏ qua kiểm tra trạng thái tài khoản khi logout
         }
 
         $user = $request->user();
 
-        if ($user !== null && $user->status !== User::STATUS_ACTIVE) {
+        if ($user !== null && $user->status !== User::STATUS_ACTIVE) { // Tài khoản bị khóa sẽ bị hủy đăng nhập, session
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

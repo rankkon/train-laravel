@@ -2,27 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\LeaveConstants;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    /** Hiển thị đơn theo phòng ban. */
+    // Hiển thị dashboard theo phạm vi người dùng và phân trang
     public function index(Request $request): View
     {
-        $query = LeaveRequest::query()->visibleTo($request->user());
+        $query = LeaveRequest::query()->visibleTo($request->user()); // Truy vấn đã lọc quyền xem của người dùng
         $total = (clone $query)->count();
-        $perPage = config('leaveConfig.leaves_per_page');
-        $lastPage = max(1, (int) ceil($total / $perPage));
-        $requestedPage = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
+        $perPage = LeaveConstants::LEAVES_PER_PAGE; // Số lượng bản ghi trên mỗi trang
+        $lastPage = max(1, (int) ceil($total / $perPage)); // Tính số trang cuối cùng, tối thiểu là 1
+        $requestedPage = filter_var($request->query('page', 1), FILTER_VALIDATE_INT); // trang người dùng yêu cầu
         if ($requestedPage === false || $requestedPage < 1) {
             $requestedPage = 1;
         }
-        $page = min($requestedPage, $lastPage);
+        $page = min($requestedPage, $lastPage); // trang thực tế sẽ hiển thị, không vượt quá trang cuối cùng
 
-        $leaves = $query->orderByDesc('leave.created_at')
-            ->orderByDesc('leave.id')
+        $leaves = $query->orderByDesc('leave.created_at') // Sắp xếp theo ngày tạo giảm dần
+            ->orderByDesc('leave.id') // Sắp xếp theo ID giảm dần khi trùng ngày tạo
             ->paginate($perPage, [
                 'leave.id', 'leave.leave_type', 'leave.created_at', 'leave.status',
                 'leave.end_date', 'leave.title', 'users.full_name',
@@ -32,8 +33,8 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'leaves' => $leaves,
-            'leaveTypes' => config('leaveConfig.leave_types'),
-            'leaveStatuses' => config('leaveConfig.leave_statuses'),
+            'leaveTypes' => LeaveConstants::LEAVE_TYPES,
+            'leaveStatuses' => LeaveConstants::LEAVE_STATUSES,
         ]);
     }
 }
