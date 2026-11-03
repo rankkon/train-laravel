@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\LeaveConstants;
 use App\Models\LeaveRequest;
 use App\Services\LeaveDraftService;
 use App\Services\LeaveService;
@@ -20,7 +21,7 @@ class LeaveController extends Controller
     {
         $user = $request->user();
         $approvers = $user->leaveApprovers();
-        $leaveTypes = config('leaveConfig.leave_types');
+        $leaveTypes = LeaveConstants::LEAVE_TYPES;
         $defaultValues = $draftService->emptyValues();
         $defaultValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id;
         $defaultValues['leave_type'] = (string) array_key_first($leaveTypes);
@@ -56,7 +57,7 @@ class LeaveController extends Controller
             if ($request->request->count() === 0 && $request->files->count() === 0
                 && (int) $request->server('CONTENT_LENGTH', 0) > 0) {
                 $status = 400;
-                $errors['form'] = __('messages.post_data_unreadable', ['size' => config('leaveConfig.attachment_max_mb')]);
+                $errors['form'] = __('messages.post_data_unreadable', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
             } elseif (isset($exitActions[$action])) {
                 $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
                 $exitDestination = $exitActions[$action];
@@ -301,7 +302,7 @@ class LeaveController extends Controller
             ->matching($search);
 
         $total = (clone $query)->count();
-        $perPage = config('leaveConfig.leaves_per_page');
+        $perPage = LeaveConstants::LEAVES_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min($requestedPage, $lastPage);
 
@@ -320,8 +321,8 @@ class LeaveController extends Controller
             'leaves' => $leaves,
             'search' => $search,
             'actionUrl' => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
-            'leaveTypes' => config('leaveConfig.leave_types'),
-            'leaveStatuses' => config('leaveConfig.leave_statuses'),
+            'leaveTypes' => LeaveConstants::LEAVE_TYPES,
+            'leaveStatuses' => LeaveConstants::LEAVE_STATUSES,
             'processPopup' => $processPopup,
             'processLeaveId' => $processLeaveId,
             'cancelReason' => $cancelReason,
@@ -353,7 +354,7 @@ class LeaveController extends Controller
             return __('messages.cancel_reason_required');
         }
 
-        if (strlen($reason) > config('leaveConfig.cancel_reason_max_bytes')) {
+        if (strlen($reason) > LeaveConstants::CANCEL_REASON_MAX_BYTES) {
             return __('messages.cancel_reason_too_long');
         }
 

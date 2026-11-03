@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Constants\LeaveConstants;
 use finfo;
 use Illuminate\Support\Collection;
 
@@ -41,8 +42,8 @@ class LeaveValidationService
         if (! preg_match('/[^\s\p{Z}]/u', $title)) {
             return __('messages.leave_title_required');
         }
-        if (mb_strlen($title, 'UTF-8') > config('leaveConfig.title_max_length')) {
-            return __('messages.leave_title_too_long', ['max' => config('leaveConfig.title_max_length')]);
+        if (mb_strlen($title, 'UTF-8') > LeaveConstants::TITLE_MAX_LENGTH) {
+            return __('messages.leave_title_too_long', ['max' => LeaveConstants::TITLE_MAX_LENGTH]);
         }
 
         return '';
@@ -54,7 +55,7 @@ class LeaveValidationService
         if (! mb_check_encoding($content, 'UTF-8')) {
             return __('messages.leave_content_encoding');
         }
-        if (strlen($content) > config('leaveConfig.content_max_bytes')) {
+        if (strlen($content) > LeaveConstants::CONTENT_MAX_BYTES) {
             return __('messages.leave_content_too_long');
         }
 
@@ -116,17 +117,17 @@ class LeaveValidationService
     public function attachment(string $name, string $data): string
     {
         if ($name === '' || ! mb_check_encoding($name, 'UTF-8')
-            || mb_strlen($name, 'UTF-8') > config('leaveConfig.attachment_name_max_length')
+            || mb_strlen($name, 'UTF-8') > LeaveConstants::ATTACHMENT_NAME_MAX_LENGTH
             || preg_match('/[\x00-\x1F\x7F]/', $name)) {
-            return __('messages.attachment_name_invalid', ['max' => config('leaveConfig.attachment_name_max_length')]);
+            return __('messages.attachment_name_invalid', ['max' => LeaveConstants::ATTACHMENT_NAME_MAX_LENGTH]);
         }
         if ($data === '') {
             return __('messages.attachment_empty');
         }
-        if (strlen($data) > config('leaveConfig.attachment_max_mb') * 1024 * 1024) {
-            return __('messages.attachment_too_large', ['size' => config('leaveConfig.attachment_max_mb')]);
+        if (strlen($data) > LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024) {
+            return __('messages.attachment_too_large', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
         }
-        $allowedTypes = config('leaveConfig.attachment_allowed_types');
+        $allowedTypes = LeaveConstants::ATTACHMENT_ALLOWED_TYPES;
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         if (! isset($allowedTypes[$extension])) {
             return __('messages.attachment_type_invalid');

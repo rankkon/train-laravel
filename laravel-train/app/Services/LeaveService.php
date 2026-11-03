@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Constants\LeaveConstants;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
@@ -36,7 +37,7 @@ class LeaveService
                 }
 
                 $errors = $this->validation->fields(
-                    $values, $currentUser->leaveApprovers(), config('leaveConfig.leave_types'), now()->toDateString(),
+                    $values, $currentUser->leaveApprovers(), LeaveConstants::LEAVE_TYPES, now()->toDateString(),
                 );
                 if (! $attachment || (int) $attachment['user_id'] !== $userId) {
                     $fileError = __('messages.attachment_select_again');
@@ -56,7 +57,7 @@ class LeaveService
                 }
 
                 $extension = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
-                $filename = bin2hex(random_bytes(config('leaveConfig.attachment_random_bytes'))).'.'.$extension;
+                $filename = bin2hex(random_bytes(LeaveConstants::ATTACHMENT_RANDOM_BYTES)).'.'.$extension;
                 $fullPath = $disk->path($filename);
                 $writtenBytes = @file_put_contents($fullPath, $attachment['data'], LOCK_EX);
                 if ($writtenBytes !== strlen($attachment['data'])) {
@@ -97,7 +98,7 @@ class LeaveService
                 Log::error(__('messages.failed_attachment_delete'));
             }
 
-            throw new RuntimeException(__('messages.leave_save_failed', ['error' => $error->getMessage()]), 0, $error);
+            throw $error;
         }
 
         return [];

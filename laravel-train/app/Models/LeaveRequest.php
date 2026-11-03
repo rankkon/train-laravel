@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constants\LeaveConstants;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -55,7 +56,7 @@ class LeaveRequest extends Model
             $matches->whereRaw(sprintf($comparison, 'users.full_name'), ['\\p{M}', $pattern, '\\p{M}'])
                 ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}'])
                 ->orWhere('leave.leave_type', 0);
-            foreach (config('leaveConfig.leave_types') as $type => $name) {
+            foreach (LeaveConstants::LEAVE_TYPES as $type => $name) {
                 $matches->orWhereRaw('(`leave`.leave_type = ? AND '.sprintf($comparison, 'CAST(? AS CHAR)').')', [
                     $type, $name, '\\p{M}', $pattern, '\\p{M}',
                 ]);

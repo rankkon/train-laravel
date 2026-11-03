@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Constants\LeaveConstants;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -100,11 +101,11 @@ class LeaveDraftService
             return $this->checkStoredAttachment($result, $keepTemporary);
         }
 
-        $maxSize = config('leaveConfig.attachment_max_mb') * 1024 * 1024;
+        $maxSize = LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024;
         $error = $file->getError();
         $size = is_file($file->getPathname()) ? $file->getSize() : 0;
         if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $size > $maxSize) {
-            $result['error'] = __('messages.attachment_too_large', ['size' => config('leaveConfig.attachment_max_mb')]);
+            $result['error'] = __('messages.attachment_too_large', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
 
             return $result;
         }

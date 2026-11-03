@@ -17,14 +17,14 @@
         <h1 class="leave-form-title">Thêm mới đơn</h1>
 
         <form id="leave-form" class="leave-form{{ $isConfirmation ? ' leave-form-confirm' : '' }}" method="post" action="{{ route('leaves.create.submit') }}" enctype="multipart/form-data" novalidate>
-            <input type="hidden" name="MAX_FILE_SIZE" value="{{ config('leaveConfig.attachment_max_mb') * 1024 * 1024 }}">
+            <input type="hidden" name="MAX_FILE_SIZE" value="{{ \App\Constants\LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024 }}">
             <div class="leave-form-fields">
                 @if (isset($errors['form']))
                     <p class="leave-form-error">{{ $errors['form'] }}</p>
                 @endif
                 <div class="leave-form-field">
                     <label for="leave-title">Tiêu đề <span class="required-marker">*</span></label>
-                    <input type="text" id="leave-title" name="title" value="{{ $values['title'] }}" maxlength="{{ config('leaveConfig.title_max_length') }}" required
+                    <input type="text" id="leave-title" name="title" value="{{ $values['title'] }}" maxlength="{{ \App\Constants\LeaveConstants::TITLE_MAX_LENGTH }}" required
                         @if ($isConfirmation) disabled @endif class="{{ isset($errors['title']) ? 'leave-input-error' : '' }}">
                     @if (isset($errors['title']))
                         <p class="leave-form-error">{{ $errors['title'] }}</p>
@@ -101,8 +101,8 @@
                         <span id="leave-attachment" class="leave-confirm-attachment" title="{{ $attachment['name'] }}">{{ $attachment['name'] }}</span>
                     @else
                         <div class="leave-file-control">
-                            <input type="file" id="leave-attachment" name="attachment" accept="{{ config('leaveConfig.attachment_accept') }}" required
-                                title="{{ __('messages.attachment_hint', ['size' => config('leaveConfig.attachment_max_mb')]) }}" class="{{ isset($errors['attachment']) ? 'leave-input-error' : '' }}">
+                            <input type="file" id="leave-attachment" name="attachment" accept="{{ \App\Constants\LeaveConstants::ATTACHMENT_ACCEPT }}" required
+                                title="{{ __('messages.attachment_hint', ['size' => \App\Constants\LeaveConstants::ATTACHMENT_MAX_MB]) }}" class="{{ isset($errors['attachment']) ? 'leave-input-error' : '' }}">
                             @if ($attachment)
                                 <span class="leave-file-name" title="{{ mb_check_encoding($attachment['name'], 'UTF-8') ? $attachment['name'] : '' }}">{{ mb_check_encoding($attachment['name'], 'UTF-8') ? $attachment['name'] : '' }}</span>
                             @endif

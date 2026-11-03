@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ErrorController;
 use App\Http\Controllers\LeaveController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -28,19 +27,17 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create');
     Route::post('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create.submit');
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves/create', function (): void {
-        abort(405);
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
     Route::post('/leaves/actions', [LeaveController::class, 'handleListAction'])->name('leaves.actions');
     Route::post('/leaves', [LeaveController::class, 'handleListAction']);
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves', function (): void {
-        abort(405);
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::match(['GET', 'HEAD', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/logout', [AuthController::class, 'logout']);
-
-Route::get('/error', [ErrorController::class, 'show'])->name('error');
 
 Route::fallback(function (): void {
     abort(404);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\LeaveConstants;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,7 +14,7 @@ class DashboardController extends Controller
     {
         $query = LeaveRequest::query()->visibleTo($request->user());
         $total = (clone $query)->count();
-        $perPage = config('leaveConfig.leaves_per_page');
+        $perPage = LeaveConstants::LEAVES_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
         $requestedPage = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
         if ($requestedPage === false || $requestedPage < 1) {
@@ -32,8 +33,8 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'leaves' => $leaves,
-            'leaveTypes' => config('leaveConfig.leave_types'),
-            'leaveStatuses' => config('leaveConfig.leave_statuses'),
+            'leaveTypes' => LeaveConstants::LEAVE_TYPES,
+            'leaveStatuses' => LeaveConstants::LEAVE_STATUSES,
         ]);
     }
 }
