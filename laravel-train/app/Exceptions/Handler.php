@@ -14,7 +14,7 @@ use Throwable;
 
 class Handler extends ExceptionHandler
 {
-    /** Cấu hình ghi log và phản hồi JSON. */
+    // Cấu hình ghi log và phản hồi JSON
     public function register(): void
     {
         $this->stopIgnoring($this->internalDontReport);
@@ -29,7 +29,7 @@ class Handler extends ExceptionHandler
         );
     }
 
-    /** Hiển thị lỗi với mã HTTP và header gốc. */
+    // Hiển thị giao diện lỗi cho người dùng, không hiển thị chi tiết lỗi
     protected function renderExceptionResponse(mixed $request, Throwable $exception): Response
     {
         if ($this->shouldReturnJson($request, $exception)) {
@@ -53,7 +53,7 @@ class Handler extends ExceptionHandler
         }
     }
 
-    /** Bỏ xác nhận và giữ dữ liệu draft để thử lại. */
+    // Bỏ xác nhận và giữ dữ liệu draft để thử lại
     private function resetDraftConfirmation(Request $request): void
     {
         if (! $request->hasSession()) {
@@ -72,10 +72,10 @@ class Handler extends ExceptionHandler
         }
     }
 
-    /** Bổ sung mã HTTP và loại lỗi vào log. */
+    // Tạo thông tin lỗi để ghi log
     protected function buildExceptionContext(Throwable $exception): array
     {
-        $context = parent::buildExceptionContext($exception);
+        $context = $this->context();
         $httpException = $this->prepareException($exception);
         $context['status'] = 500;
         if ($exception instanceof HttpResponseException) {
@@ -84,11 +84,22 @@ class Handler extends ExceptionHandler
             $context['status'] = $httpException->getStatusCode();
         }
         $context['exception_type'] = $exception::class;
+        $context['file'] = $exception->getFile();
+        $context['line'] = $exception->getLine();
+
+        $cause = $exception;
+        while ($cause->getPrevious() !== null) {
+            $cause = $cause->getPrevious();
+        }
+        if ($cause !== $exception) {
+            $context['cause_type'] = $cause::class;
+            $context['cause_message'] = $cause->getMessage();
+        }
 
         return $context;
     }
 
-    /** Lấy ngữ cảnh request mà không truy vấn database. */
+    // Lấy thông tin request mà không truy vấn database
     protected function context(): array
     {
         if (! $this->container->bound('request')) {

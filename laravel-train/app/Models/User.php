@@ -9,27 +9,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Hidden(['password_hash'])]
+#[Hidden(['password_hash'])] // Ẩn thuộc tính password_hash khi chuyển đổi sang mảng, JSON
 class User extends Authenticatable
 {
-    public const TYPE_USER = 1;
+    public const TYPE_USER = 1; // Mã vai trò: Người dùng
 
-    public const TYPE_MANAGER = 2;
+    public const TYPE_MANAGER = 2; // Mã vai trò: Quản lý
 
-    public const TYPE_ADMIN = 3;
+    public const TYPE_ADMIN = 3; // Mã vai trò: Quản trị viên
 
-    public const STATUS_ACTIVE = 1;
+    public const STATUS_ACTIVE = 1; // Mã trạng thái: Hoạt động
 
-    public const STATUS_LOCKED = 0;
+    public const STATUS_LOCKED = 0; // Mã trạng thái: Bị khóa
 
     use HasFactory, Notifiable;
 
-    public $timestamps = false;
+    public $timestamps = false; // Không dùng cập nhật tự động created_at và updated_at
 
-    protected $authPasswordName = 'password_hash';
+    protected $authPasswordName = 'password_hash'; // Khai báo tên thuộc tính mật khẩu cho xác thực
 
-    protected $rememberTokenName = '';
+    protected $rememberTokenName = '';  // Không sử dụng thuộc tính remember_token
 
+    // Khai báo cách chuyển kiểu thuộc tính users
     protected function casts(): array
     {
         return [
@@ -42,7 +43,7 @@ class User extends Authenticatable
         ];
     }
 
-    /** Lấy người duyệt phù hợp với vai trò và phòng ban. */
+    // Lấy người duyệt phù hợp với tài khoản hiện tại
     public function leaveApprovers(): Collection
     {
         $query = self::query()->where('status', self::STATUS_ACTIVE);
@@ -59,13 +60,13 @@ class User extends Authenticatable
         return $query->orderBy('id')->get(['id', 'full_name']);
     }
 
-    /** Lấy các đơn do người dùng tạo. */
+    // Lấy các đơn do người dùng tạo
     public function leaveRequests(): HasMany
     {
         return $this->hasMany(LeaveRequest::class, 'user_id');
     }
 
-    /** Lấy các đơn chỉ định người dùng làm người duyệt. */
+    // Lấy các đơn chỉ định người dùng làm người duyệt
     public function assignedLeaveRequests(): HasMany
     {
         return $this->hasMany(LeaveRequest::class, 'approver_id');

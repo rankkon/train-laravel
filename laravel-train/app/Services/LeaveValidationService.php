@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 class LeaveValidationService
 {
-    /** Kiểm tra các trường và thứ tự ngày. */
+    // Kiểm tra các trường dữ liệu và trả về mảng lỗi
     public function fields(array $values, Collection $approvers, array $leaveTypes, string $minimumDate): array
     {
         $messages = [
@@ -33,7 +33,7 @@ class LeaveValidationService
         return $errors;
     }
 
-    /** Kiểm tra tiêu đề bắt buộc và giới hạn ký tự. */
+    // Kiểm tra tiêu đề hợp lệ và giới hạn ký tự
     private function title(string $title): string
     {
         if (! mb_check_encoding($title, 'UTF-8')) {
@@ -49,7 +49,7 @@ class LeaveValidationService
         return '';
     }
 
-    /** Kiểm tra định dạng và dung lượng nội dung. */
+    // Kiểm tra định dạng và dung lượng nội dung
     private function content(string $content): string
     {
         if (! mb_check_encoding($content, 'UTF-8')) {
@@ -62,7 +62,7 @@ class LeaveValidationService
         return '';
     }
 
-    /** Kiểm tra người duyệt trong danh sách hiện hành. */
+    // Kiểm tra người duyệt trong danh sách hiện hành
     private function approver(string $value, Collection $approvers): string
     {
         if ($approvers->isEmpty()) {
@@ -81,10 +81,10 @@ class LeaveValidationService
         return __('messages.approver_required');
     }
 
-    /** Kiểm tra mã loại đơn. */
+    // Kiểm tra mã loại đơn
     private function type(string $value, array $leaveTypes): string
     {
-        foreach ($leaveTypes as $code => $name) {
+        foreach (array_keys($leaveTypes) as $code) {
             if ($value === (string) $code) {
                 return '';
             }
@@ -93,7 +93,7 @@ class LeaveValidationService
         return __('messages.leave_type_required');
     }
 
-    /** Kiểm tra định dạng, lịch và ngày tối thiểu. */
+    // Kiểm tra định dạng, lịch và ngày tối thiểu
     private function date(string $value, string $label, string $minimumDate): string
     {
         if ($value === '') {
@@ -113,34 +113,34 @@ class LeaveValidationService
         return '';
     }
 
-    /** Kiểm tra tên, dung lượng và nội dung thật của file. */
+    // Kiểm tra tên, dung lượng và nội dung của file
     public function attachment(string $name, string $data): string
     {
         if ($name === '' || ! mb_check_encoding($name, 'UTF-8')
             || mb_strlen($name, 'UTF-8') > LeaveConstants::ATTACHMENT_NAME_MAX_LENGTH
             || preg_match('/[\x00-\x1F\x7F]/', $name)) {
-            return __('messages.attachment_name_invalid', ['max' => LeaveConstants::ATTACHMENT_NAME_MAX_LENGTH]);
+            return __('messages.attachment_name_invalid', ['max' => LeaveConstants::ATTACHMENT_NAME_MAX_LENGTH]); // Tên phải hợp lệ, không có ký tự điều khiển và không quá giới hạn ký tự
         }
         if ($data === '') {
-            return __('messages.attachment_empty');
+            return __('messages.attachment_empty'); // Từ chối tệp trống
         }
         if (strlen($data) > LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024) {
-            return __('messages.attachment_too_large', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
+            return __('messages.attachment_too_large', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]); // Từ chối tệp quá lớn
         }
         $allowedTypes = LeaveConstants::ATTACHMENT_ALLOWED_TYPES;
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         if (! isset($allowedTypes[$extension])) {
-            return __('messages.attachment_type_invalid');
+            return __('messages.attachment_type_invalid'); // Từ chối loại tệp không được phép
         }
         $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($data);
         if (! in_array($mime, $allowedTypes[$extension], true)) {
-            return __('messages.attachment_content_invalid');
+            return __('messages.attachment_content_invalid'); // Từ chối nội dung tệp không hợp lệ
         }
         if ($extension !== 'pdf' && @getimagesizefromstring($data) === false) {
-            return __('messages.attachment_image_invalid');
+            return __('messages.attachment_image_invalid'); // Từ chối tệp hình ảnh không hợp lệ
         }
         if ($extension === 'pdf' && substr($data, 0, 5) !== '%PDF-') {
-            return __('messages.attachment_pdf_invalid');
+            return __('messages.attachment_pdf_invalid'); // Từ chối tệp PDF không hợp lệ
         }
 
         return '';

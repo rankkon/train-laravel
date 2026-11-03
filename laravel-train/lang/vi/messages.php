@@ -46,5 +46,4 @@ return [
     'attachment_write_failed' => '※Không ghi được tệp đính kèm.',
     'failed_attachment_delete' => '※Không thể xóa tệp của giao dịch lưu đơn thất bại.',
     'leave_rollback_failed' => '※Không thể rollback giao dịch lưu đơn.',
-    'leave_save_failed' => '※Lưu đơn thất bại: :error',
 ];

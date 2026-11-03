@@ -11,7 +11,7 @@ class LeaveDraftService
 {
     public function __construct(private LeaveValidationService $validation) {}
 
-    /** Tạo các giá trị trống của form. */
+    // Tạo bộ dữ liệu trống cho form
     public function emptyValues(): array
     {
         return [
@@ -20,7 +20,7 @@ class LeaveDraftService
         ];
     }
 
-    /** Chuẩn bị bản nháp và dữ liệu ban đầu. */
+    // Chuẩn bị bản nháp và dữ liệu ban đầu
     public function prepare(Request $request, array $defaultValues): array
     {
         $session = $request->session();
@@ -66,12 +66,12 @@ class LeaveDraftService
         ];
     }
 
-    /** Đọc dữ liệu nhập mà không đổi khoảng trắng. */
+    // Đọc dữ liệu từ form, chỉ lấy các trường hợp lệ
     public function readValues(array $post): array
     {
         $values = $this->emptyValues();
         $errors = [];
-        foreach ($values as $field => $value) {
+        foreach (array_keys($values) as $field) {
             if (! isset($post[$field])) {
                 continue;
             }
@@ -86,13 +86,13 @@ class LeaveDraftService
         return ['values' => $values, 'errors' => $errors];
     }
 
-    /** Đọc file mới hoặc giữ file trong session. */
+    // Đọc file upload mới hoặc giữ file trong session
     public function readAttachment(Request $request, ?array $attachment, bool $keepTemporary = false): array
     {
-        $result = ['attachment' => $attachment, 'error' => ''];
+        $result = ['attachment' => $attachment, 'error' => '']; // Không thay đổi file tạm nếu file mới lỗi
         $files = $request->files->all();
         $file = $files['attachment'] ?? null;
-        if (count($files) > 1 || ($file !== null && ! $file instanceof UploadedFile)) {
+        if (count($files) > 1 || ($file !== null && ! $file instanceof UploadedFile)) { // Chỉ cho phép 1 file upload
             $result['error'] = __('messages.attachment_single_only');
 
             return $result;
@@ -123,13 +123,13 @@ class LeaveDraftService
             return $result;
         }
 
-        $data = @file_get_contents($file->getPathname(), false, null, 0, $maxSize + 1);
+        $data = @file_get_contents($file->getPathname(), false, null, 0, $maxSize + 1); // Giới hạn đọc file
         if ($data === false) {
             $result['error'] = __('messages.attachment_read_failed');
 
             return $result;
         }
-        $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+        $name = basename(str_replace('\\', '/', $file->getClientOriginalName())); // Chuẩn hóa tên file
         if (! $keepTemporary) {
             $result['error'] = $this->validation->attachment($name, $data);
             if ($result['error'] !== '') {
@@ -146,7 +146,7 @@ class LeaveDraftService
         return $result;
     }
 
-    /** Kiểm tra file tạm đã giữ trong session. */
+    // Kiểm tra file tạm đã giữ trong session
     private function checkStoredAttachment(array $result, bool $keepTemporary): array
     {
         if (! $keepTemporary && $result['attachment'] && ! empty($result['attachment']['temporary'])) {
@@ -163,7 +163,7 @@ class LeaveDraftService
         return $result;
     }
 
-    /** So sánh dữ liệu với lúc mở form. */
+    // So sánh dữ liệu với trạng thái ban đầu
     public function hasChanges(array $values, ?array $attachment, array $initial): bool
     {
         foreach ($initial['values'] as $field => $initialValue) {
@@ -177,7 +177,7 @@ class LeaveDraftService
         return $this->attachmentFingerprint($attachment) !== $initial['attachment'];
     }
 
-    /** Lấy tên đường dẫn file. */
+    // Tạo dấu nhận diện file bằng tên và hash dữ liệu
     public function attachmentFingerprint(?array $attachment): ?array
     {
         if (! $attachment) {
@@ -187,7 +187,7 @@ class LeaveDraftService
         return ['name' => $attachment['name'], 'hash' => hash('sha256', $attachment['data'])];
     }
 
-    /** Xóa bản nháp và file tạm trong session. */
+    // Xóa dữ liệu nháp khỏi session
     public function clear(Session $session): void
     {
         $session->forget([
