@@ -17,6 +17,9 @@ class UserController extends Controller
     // Hiện danh sách người dùng theo quyền, phân trang, tìm kiếm và lọc trạng thái
     public function index(Request $request): View
     {
+        if ($request->isMethod('get')) {
+            $request->session()->forget('user_bulk_lock_ids');
+        }
         $viewer = $request->user(); // Tài khoản đăng nhập hiện tại
 
         return $this->renderList($viewer, $this->listFilters($request));
@@ -26,14 +29,58 @@ class UserController extends Controller
     public function handleListAction(Request $request, UserService $userService): View|RedirectResponse
     {
         $action = $request->post('action');
+        $session = $request->session();
+        if (! in_array($action, ['confirm_bulk_lock', 'close_bulk_popup'], true)) {
+            $session->forget('user_bulk_lock_ids'); // Chỉ giữ danh sách người dùng được chọn khi đang xác nhận hoặc đóng popup khóa hàng loạt
+        }
         abort_unless(is_string($action) && in_array($action, [
             'open_lock', 'open_unlock', 'confirm_lock', 'confirm_unlock', 'close_popup',
+            'open_bulk_lock', 'confirm_bulk_lock', 'close_bulk_popup',
         ], true), 400);
 
         $filters = $this->listFilters($request);
         $redirectParameters = ['q' => $filters['search'], 'status' => $filters['status'], 'page' => $filters['page']]; // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
         if ($action === 'close_popup') {
             return redirect()->route('users.index', $redirectParameters, 303);
+        }
+
+        if ($action === 'open_bulk_lock') {
+            $selectedUserIds = [];
+            $rawIds = $request->post('user_ids');
+            if ($rawIds !== null) {
+                abort_unless(is_array($rawIds), 400);
+                foreach ($rawIds as $rawId) {
+                    $targetUserId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false;
+                    abort_if($targetUserId === false || $targetUserId < 1, 400);
+                    $selectedUserIds[] = $targetUserId;
+                }
+            }
+            if ($selectedUserIds !== []) {
+                abort_unless(in_array($request->user()->user_type, [User::TYPE_MANAGER, User::TYPE_ADMIN], true), 403); // Chỉ cho phép quản lý hoặc admin thực hiện thao tác khóa hàng loạt
+                $session->put('user_bulk_lock_ids', $selectedUserIds); // Giữ danh sách người dùng được chọn trong session để xác nhận khóa hàng loạt
+
+                return $this->renderList($request->user(), $filters, statusPopup: 'bulk_lock', selectedUserIds: $selectedUserIds);
+            }
+
+            return $this->renderList($request->user(), $filters);
+        }
+
+        if ($action === 'confirm_bulk_lock' || $action === 'close_bulk_popup') {
+            $selectedUserIds = $session->get('user_bulk_lock_ids', []);
+            $session->forget('user_bulk_lock_ids');
+            if ($action === 'confirm_bulk_lock' && $selectedUserIds !== []) {
+                try {
+                    $userService->changeStatus($request->user()->id, $selectedUserIds, true);
+                } catch (AuthenticationException) {
+                    Auth::logout();
+
+                    return redirect()->route('login', status: 303);
+                }
+
+                return redirect()->route('users.index', $redirectParameters, 303);
+            }
+
+            return $this->renderList($request->user(), $filters, selectedUserIds: $selectedUserIds); // Hiển thị lại danh sách và giữ tick các người dùng đã chọn nếu hủy popup
         }
 
         $rawId = $request->post('user_id');
@@ -49,7 +96,7 @@ class UserController extends Controller
         }
 
         try {
-            $userService->changeStatus($request->user()->id, $targetUserId, $action === 'confirm_lock');
+            $userService->changeStatus($request->user()->id, [$targetUserId], $action === 'confirm_lock');
         } catch (AuthenticationException) {
             Auth::logout();
 
@@ -74,8 +121,8 @@ class UserController extends Controller
         return ['search' => $search, 'status' => $statusFilter, 'page' => $requestedPage];
     }
 
-    // Giữ trang yêu cầu cho URL thao tác
-    private function renderList(User $viewer, array $filters, string $statusPopup = '', int $statusUserId = 0): View
+    // Chuẩn bị danh sách, trạng thái checkbox và popup
+    private function renderList(User $viewer, array $filters, string $statusPopup = '', int $statusUserId = 0, array $selectedUserIds = []): View
     {
         $search = $filters['search'];
         $statusFilter = $filters['status'];
@@ -100,6 +147,15 @@ class UserController extends Controller
             $userActions[$user->id] = Gate::forUser($viewer)->allows('manage', $user);
         }
 
+        $statusMessage = '';
+        if ($statusPopup === 'lock') {
+            $statusMessage = __('messages.confirm_user_lock');
+        } elseif ($statusPopup === 'unlock') {
+            $statusMessage = __('messages.confirm_user_unlock');
+        } elseif ($statusPopup === 'bulk_lock') {
+            $statusMessage = __('messages.confirm_users_lock');
+        }
+
         // Trả về view với dữ liệu hiển thị
         return view('users.index', [
             'users'               => $users,
@@ -113,7 +169,9 @@ class UserController extends Controller
             'actionUrl'           => route('users.actions', ['q' => $search, 'status' => $statusFilter, 'page' => $requestedPage]),
             'statusPopup'         => $statusPopup,
             'statusUserId'        => $statusUserId,
-            'statusMessage'       => $statusPopup === 'lock' ? __('messages.confirm_user_lock') : __('messages.confirm_user_unlock'),
+            'statusMessage'       => $statusMessage,
+            'statusCloseAction'   => $statusPopup === 'bulk_lock' ? 'close_bulk_popup' : 'close_popup',
+            'selectedUserIds'     => $selectedUserIds,
         ]);
     }
 }

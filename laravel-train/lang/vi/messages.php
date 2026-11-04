@@ -6,6 +6,7 @@ return [
     'no_leaves_found' => 'Không có đơn phù hợp.',
     'no_users_found' => 'Không có người dùng phù hợp.',
     'confirm_user_lock' => 'Bạn có chắc chắn muốn khóa tài khoản này?',
+    'confirm_users_lock' => 'Bạn có chắc chắn muốn khóa các tài khoản đã chọn?',
     'confirm_user_unlock' => 'Bạn có chắc chắn muốn mở khóa tài khoản này?',
     'user_rollback_failed' => '※Không thể rollback giao dịch cập nhật trạng thái tài khoản.',
     'confirmation_title' => 'Thông báo',

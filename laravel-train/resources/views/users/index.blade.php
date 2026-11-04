@@ -32,7 +32,9 @@
             @if ($showUserListActions)
                 <div class="user-list-actions">
                     <button type="button" class="leave-add" disabled>Thêm mới</button>
-                    <button type="button" class="leave-add leave-cancel" disabled>Khóa nhiều</button>
+                    <form method="post" action="{{ $actionUrl }}" id="user-bulk-form">
+                        <button name="action" value="open_bulk_lock" class="leave-add leave-cancel">Khóa nhiều</button>
+                    </form>
                 </div>
             @endif
         </div>
@@ -41,7 +43,7 @@
             <table class="leave-table user-table">
                 <thead>
                     <tr>
-                        <th scope="col"><input type="checkbox" id="select-all-users" disabled></th>
+                        <th scope="col"><input type="checkbox" id="select-all-users"></th>
                         <th scope="col">Mã người dùng</th>
                         <th scope="col">Tên người dùng</th>
                         <th scope="col">Ngày lập</th>
@@ -52,7 +54,11 @@
                 <tbody>
                     @forelse ($users as $user)
                         <tr>
-                            <td><input type="checkbox" value="{{ $user->id }}" disabled></td>
+                            <td>
+                                <input type="checkbox" name="user_ids[]" value="{{ $user->id }}" form="user-bulk-form"
+                                    @if (! $userActions[$user->id]) disabled @endif
+                                    @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
+                            </td>
                             <td>{{ str_pad((string) $user->id, \App\Constants\UserConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
                             <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
                             <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
@@ -94,18 +100,30 @@
     @if ($statusPopup !== '')
         <div class="popup-overlay">
             <form method="post" action="{{ $actionUrl }}" class="popup-dialog">
-                <input type="hidden" name="user_id" value="{{ $statusUserId }}">
+                @if ($statusPopup !== 'bulk_lock')
+                    <input type="hidden" name="user_id" value="{{ $statusUserId }}">
+                @endif
                 <header class="popup-header">
                     <h2 class="popup-title">{{ __('messages.confirmation_title') }}</h2>
-                    <button name="action" value="close_popup" class="popup-close" title="Đóng"></button>
+                    <button name="action" value="{{ $statusCloseAction }}" class="popup-close" title="Đóng"></button>
                 </header>
                 <p class="popup-message">{{ $statusMessage }}</p>
                 <div class="popup-actions">
                     <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm">Đồng ý</button>
-                    <button name="action" value="close_popup" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button name="action" value="{{ $statusCloseAction }}" class="popup-button popup-cancel" autofocus>Không</button>
                 </div>
             </form>
         </div>
     @endif
+    <script>
+        const selectAllUsers = document.getElementById('select-all-users');
+        const userCheckboxes = document.querySelectorAll('.user-table tbody input[type="checkbox"]:not(:disabled)'); // Chỉ lấy các checkbox không bị disabled
+
+        selectAllUsers.addEventListener('change', function () { // Chọn hoặc bỏ chọn tất cả các checkbox khi checkbox đầu bảng thay đổi
+            for (const checkbox of userCheckboxes) {
+                checkbox.checked = selectAllUsers.checked;
+            }
+        });
+    </script>
 </body>
 </html>
