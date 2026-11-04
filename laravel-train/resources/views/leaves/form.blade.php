@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thêm mới đơn | Sanshin</title>
+    <title>{{ $formTitle }} | Sanshin</title>
     <link rel="stylesheet" href="{{ asset('css/common.css') }}?v={{ filemtime(public_path('css/common.css')) }}">
     <link rel="stylesheet" href="{{ asset('css/leave_form.css') }}?v={{ filemtime(public_path('css/leave_form.css')) }}">
 </head>
@@ -14,9 +14,9 @@
     </header>
 
     <main class="leave-list leave-create">
-        <h1 class="leave-form-title">Thêm mới đơn</h1>
+        <h1 class="leave-form-title">{{ $formTitle }}</h1>
 
-        <form id="leave-form" class="leave-form{{ $isConfirmation ? ' leave-form-confirm' : '' }}" method="post" action="{{ route('leaves.create.submit') }}" enctype="multipart/form-data" novalidate>
+        <form id="leave-form" class="leave-form{{ $isConfirmation ? ' leave-form-confirm' : '' }}" method="post" action="{{ $formAction }}" enctype="multipart/form-data" novalidate>
             <input type="hidden" name="MAX_FILE_SIZE" value="{{ \App\Constants\LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024 }}">
             <div class="leave-form-fields">
                 @if (isset($errors['form']))
@@ -70,7 +70,7 @@
                 <div class="leave-form-field leave-form-date">
                     <label for="leave-start-date">Ngày bắt đầu <span class="required-marker">*</span></label>
                     <div class="leave-date-control">
-                        <input type="date" id="leave-start-date" name="start_date" value="{{ $values['start_date'] }}" min="{{ $minimumDate }}" required
+                        <input type="date" id="leave-start-date" name="start_date" value="{{ $values['start_date'] }}" @if ($minimumDate !== '') min="{{ $minimumDate }}" @endif required
                             @if ($isConfirmation) disabled @endif class="{{ isset($errors['start_date']) ? 'leave-input-error' : '' }}">
                         @if ($isConfirmation)
                             <span class="leave-calendar-icon"></span>
@@ -84,7 +84,7 @@
                 <div class="leave-form-field leave-form-date">
                     <label for="leave-end-date">Ngày kết thúc <span class="required-marker">*</span></label>
                     <div class="leave-date-control">
-                        <input type="date" id="leave-end-date" name="end_date" value="{{ $values['end_date'] }}" min="{{ $minimumDate }}" required
+                        <input type="date" id="leave-end-date" name="end_date" value="{{ $values['end_date'] }}" @if ($minimumDate !== '') min="{{ $minimumDate }}" @endif required
                             @if ($isConfirmation) disabled @endif class="{{ isset($errors['end_date']) ? 'leave-input-error' : '' }}">
                         @if ($isConfirmation)
                             <span class="leave-calendar-icon"></span>

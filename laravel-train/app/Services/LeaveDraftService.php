@@ -3,32 +3,35 @@
 namespace App\Services;
 
 use App\Constants\LeaveConstants;
+use App\Models\LeaveRequest;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class LeaveDraftService
 {
-    public function __construct(private LeaveValidationService $validation) {}
+    public function __construct(private LeaveValidationService $validation, private LeaveService $leaveService) {}
 
     // Tạo bộ dữ liệu trống cho form
     public function emptyValues(): array
     {
         return [
-            'title'       => '', 
-            'content'     => '', 
+            'title' => '',
+            'content' => '',
             'approver_id' => '',
-            'leave_type'  => '', 
-            'start_date'  => '', 
-            'end_date'    => '',
+            'leave_type' => '',
+            'start_date' => '',
+            'end_date' => '',
         ];
     }
 
     // Chuẩn bị bản nháp và dữ liệu ban đầu
-    public function prepare(Request $request, array $defaultValues): array
+    public function prepare(Request $request, array $defaultValues, Collection $approvers, ?LeaveRequest $leave = null): array
     {
         $session = $request->session();
         $userId = $request->user()->id;
+        $leaveId = $leave?->id ?? 0; // 0 nếu tạo mới, lớn hơn 0 nếu chỉnh sửa
 
         if ($request->isMethod('get') && ! $session->get('leave_create_resume')) {
             $this->clear($session);
@@ -39,12 +42,24 @@ class LeaveDraftService
         $errors = [];
         $draft = $session->get('leave_create_draft');
         if ($draft && (int) $draft['user_id'] === $userId
-            && isset($draft['leave_id']) && (int) $draft['leave_id'] === 0
+            && isset($draft['leave_id']) && (int) $draft['leave_id'] === $leaveId
             && $session->has('leave_create_initial')) {
             $values = $draft['values'];
             $errors = $draft['errors'] ?? [];
         } else {
             $this->clear($session);
+            if ($leave !== null) {
+                foreach (array_keys($values) as $field) {
+                    $values[$field] = (string) $leave->getRawOriginal($field);
+                }
+                if (! $approvers->contains('id', (int) $values['approver_id'])) {
+                    $values['approver_id'] = $defaultValues['approver_id'];
+                }
+                $savedAttachment = $this->leaveService->readSavedAttachment($leave, $userId);
+                if ($savedAttachment !== null) {
+                    $session->put('leave_create_attachment', $savedAttachment);
+                }
+            }
         }
 
         $attachment = $session->get('leave_create_attachment');
@@ -55,21 +70,21 @@ class LeaveDraftService
 
         if (! $session->has('leave_create_initial')) {
             $session->put('leave_create_initial', [
-                'values'     => $values,
+                'values' => $values,
                 'attachment' => $this->attachmentFingerprint($attachment),
             ]);
             $session->put('leave_create_draft', [
                 'user_id'   => $userId,
-                'leave_id'  => 0, 
+                'leave_id'  => $leaveId,
                 'values'    => $values,
-                'confirmed' => false, 
+                'confirmed' => false,
                 'errors'    => [],
             ]);
         }
 
         return [
-            'values'     => $values, 
-            'errors'     => $errors, 
+            'values'     => $values,
+            'errors'     => $errors,
             'attachment' => $attachment,
             'initial'    => $session->get('leave_create_initial'),
         ];

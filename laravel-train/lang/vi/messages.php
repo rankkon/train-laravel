@@ -45,5 +45,6 @@ return [
     'upload_directory_missing' => '※Không tìm thấy thư mục lưu tệp.',
     'attachment_write_failed' => '※Không ghi được tệp đính kèm.',
     'failed_attachment_delete' => '※Không thể xóa tệp của giao dịch lưu đơn thất bại.',
+    'old_attachment_delete_failed' => '※Không thể xóa tệp cũ sau khi sửa đơn.',
     'leave_rollback_failed' => '※Không thể rollback giao dịch lưu đơn.',
 ];

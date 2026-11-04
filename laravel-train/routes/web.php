@@ -28,6 +28,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');
     Route::get('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create'); // mở form tạo đơn
     Route::post('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create.submit'); // xử lý các action form tạo đơn
+    Route::get('/leaves/{leave}/edit', [LeaveController::class, 'edit'])->name('leaves.edit');
+    Route::post('/leaves/{leave}/edit', [LeaveController::class, 'edit'])->name('leaves.edit.submit');
+    Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves/{leave}/edit', function (): void {
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
+    });
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/leaves/create', function (): void {
         abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
