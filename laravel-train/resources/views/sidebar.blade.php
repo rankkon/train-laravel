@@ -17,7 +17,7 @@
             <a href="{{ route('dashboard') }}" class="menu-item{{ request()->routeIs('dashboard') ? ' menu-active' : '' }}">
                 <span class="menu-label">Dashboard</span>
             </a>
-            <a href="{{ url('/users') }}" class="menu-item{{ request()->routeIs('users.*') ? ' menu-active' : '' }}">
+            <a href="{{ route('users.index') }}" class="menu-item{{ request()->routeIs('users.*') ? ' menu-active' : '' }}">
                 <span class="menu-label">Quản lý người dùng</span>
             </a>
             <a href="{{ route('leaves.index') }}" class="menu-item{{ request()->routeIs('leaves.*') || request()->is('leaves') ? ' menu-active' : '' }}">

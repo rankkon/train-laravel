@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Constants\UserConstants;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -30,16 +33,43 @@ class User extends Authenticatable
 
     protected $rememberTokenName = '';  // Không sử dụng thuộc tính remember_token
 
+    // Giới hạn người dùng được xem dữ liệu theo phòng ban
+    #[Scope]
+    protected function visibleTo(Builder $query, User $viewer): void
+    {
+        if ($viewer->user_type !== self::TYPE_ADMIN) {
+            $query->where('department', $viewer->department);
+        }
+    }
+
+    // Tìm kiếm người dùng theo tên hoặc mã người dùng
+    #[Scope]
+    protected function matching(Builder $query, string $search): void
+    {
+        if ($search === '') {
+            return;
+        }
+
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%'; // Thoát các ký tự đặc biệt trong chuỗi tìm kiếm để tìm đúng ký tự nhập vào
+        $codeLength = UserConstants::USER_CODE_LENGTH;
+        $paddingThreshold = 10 ** ($codeLength - 1); // Xác định ngưỡng ID để đệm số 0 theo độ dài mã người dùng
+        $query->where(function (Builder $matches) use ($pattern, $codeLength, $paddingThreshold): void {
+            $matches->whereRaw("CASE WHEN id < ? THEN LPAD(id, ?, '0') ELSE CAST(id AS CHAR) END LIKE ? ESCAPE '!'", [
+                $paddingThreshold, $codeLength, $pattern,
+            ])->orWhereRaw("full_name LIKE ? ESCAPE '!'", [$pattern]);
+        });
+    }
+
     // Khai báo cách chuyển kiểu thuộc tính users
     protected function casts(): array
     {
         return [
-            'status' => 'integer',
-            'user_type' => 'integer',
+            'status'     => 'integer',
+            'user_type'  => 'integer',
             'department' => 'integer',
             'birth_date' => 'date:Y-m-d',
             'created_at' => 'datetime:Y-m-d H:i:s',
-            'update_at' => 'datetime:Y-m-d H:i:s',
+            'update_at'  => 'datetime:Y-m-d H:i:s',
         ];
     }
 

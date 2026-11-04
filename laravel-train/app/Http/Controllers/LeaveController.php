@@ -66,7 +66,7 @@ class LeaveController extends Controller
             'exit_list' => 'leaves', 'exit_logout' => 'logout',
         ]; // Ánh xạ các hành động thoát form sang các điểm đến tương ứng
         $exitUrls = [
-            'dashboard' => route('dashboard'), 'users' => url('/users'),
+            'dashboard' => route('dashboard'), 'users' => route('users.index'),
             'leaves' => route('leaves.index'), 'logout' => route('logout'),
         ]; // Ánh xạ các điểm đến thoát form sang URL tương ứng
 
