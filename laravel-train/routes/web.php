@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,12 @@ Route::middleware('guest')->group(function (): void {
 // Các route nghiệp vụ yêu cầu đăng nhập
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/users', [UserController::class, 'index'])->name('users.index'); // Hiện danh sách người dùng cho tài khoản đăng nhập
+    Route::post('/users', [UserController::class, 'handleListAction'])->name('users.actions');
+    Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users', function (): void {
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
+    });
 
     Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');
     Route::get('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create'); // mở form tạo đơn
