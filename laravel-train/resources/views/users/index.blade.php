@@ -59,24 +59,25 @@
                             <td>{{ $userStatuses[$user->status] }}</td>
                             <td>
                                 @if ($userActions[$user->id])
-                                    <div class="user-row-actions">
+                                    <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
+                                        <input type="hidden" name="user_id" value="{{ $user->id }}">
                                         <button type="button" class="user-edit" title="Sửa" disabled>✎</button>
                                         @if ($user->status === \App\Models\User::STATUS_ACTIVE)
-                                            <button type="button" class="user-cancel" title="Khóa" disabled>
+                                            <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa">
                                                 <svg class="user-status-icon" viewBox="0 0 24 24">
                                                     <rect x="4" y="11" width="16" height="10" rx="2"></rect>
                                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                                 </svg>
                                             </button>
                                         @else
-                                            <button type="button" class="user-activate" title="Mở khóa" disabled>
+                                            <button type="submit" name="action" value="open_unlock" class="user-activate" title="Mở khóa">
                                                 <svg class="user-status-icon" viewBox="0 0 24 24">
                                                     <rect x="4" y="11" width="16" height="10" rx="2"></rect>
                                                     <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
                                                 </svg>
                                             </button>
                                         @endif
-                                    </div>
+                                    </form>
                                 @endif
                             </td>
                         </tr>
@@ -89,5 +90,22 @@
 
         {{ $users->links('pagination') }}
     </main>
+
+    @if ($statusPopup !== '')
+        <div class="popup-overlay">
+            <form method="post" action="{{ $actionUrl }}" class="popup-dialog">
+                <input type="hidden" name="user_id" value="{{ $statusUserId }}">
+                <header class="popup-header">
+                    <h2 class="popup-title">{{ __('messages.confirmation_title') }}</h2>
+                    <button name="action" value="close_popup" class="popup-close" title="Đóng"></button>
+                </header>
+                <p class="popup-message">{{ $statusMessage }}</p>
+                <div class="popup-actions">
+                    <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm">Đồng ý</button>
+                    <button name="action" value="close_popup" class="popup-button popup-cancel" autofocus>Không</button>
+                </div>
+            </form>
+        </div>
+    @endif
 </body>
 </html>

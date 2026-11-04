@@ -27,8 +27,9 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index'); // Hiện danh sách người dùng cho tài khoản đăng nhập
-    Route::match(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users', function (): void { // Chỉ cho phép xem danh sách người dùng
-        abort(405, '', ['Allow' => 'GET, HEAD']);
+    Route::post('/users', [UserController::class, 'handleListAction'])->name('users.actions');
+    Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users', function (): void {
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
 
     Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');

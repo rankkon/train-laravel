@@ -4,7 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Constants\UserConstants;
 use App\Models\User;
+use App\Services\UserService;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -13,6 +18,50 @@ class UserController extends Controller
     public function index(Request $request): View
     {
         $viewer = $request->user(); // Tài khoản đăng nhập hiện tại
+
+        return $this->renderList($viewer, $this->listFilters($request));
+    }
+
+    // Xử lý khóa hoặc mở khóa người dùng từ danh sách
+    public function handleListAction(Request $request, UserService $userService): View|RedirectResponse
+    {
+        $action = $request->post('action');
+        abort_unless(is_string($action) && in_array($action, [
+            'open_lock', 'open_unlock', 'confirm_lock', 'confirm_unlock', 'close_popup',
+        ], true), 400);
+
+        $filters = $this->listFilters($request);
+        $redirectParameters = ['q' => $filters['search'], 'status' => $filters['status'], 'page' => $filters['page']]; // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
+        if ($action === 'close_popup') {
+            return redirect()->route('users.index', $redirectParameters, 303);
+        }
+
+        $rawId = $request->post('user_id');
+        $targetUserId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false;
+        abort_if($targetUserId === false || $targetUserId < 1, 400);
+
+        if ($action === 'open_lock' || $action === 'open_unlock') {
+            $targetUser = User::query()->findOrFail($targetUserId);
+            Gate::authorize('manage', $targetUser);
+            $statusPopup = $action === 'open_lock' ? 'lock' : 'unlock';
+
+            return $this->renderList($request->user(), $filters, $statusPopup, $targetUserId);
+        }
+
+        try {
+            $userService->changeStatus($request->user()->id, $targetUserId, $action === 'confirm_lock');
+        } catch (AuthenticationException) {
+            Auth::logout();
+
+            return redirect()->route('login', status: 303);
+        }
+
+        return redirect()->route('users.index', $redirectParameters, 303);
+    }
+
+    // Đọc và chuẩn hóa từ khóa, trạng thái lọc và trang được yêu cầu
+    private function listFilters(Request $request): array
+    {
         $rawSearch = $request->query('q');
         $search = is_string($rawSearch) ? trim($rawSearch) : '';
         $rawStatus = $request->query('status');
@@ -22,6 +71,15 @@ class UserController extends Controller
             $requestedPage = 1; // Trang không hợp lệ sẽ trả về trang đầu
         }
 
+        return ['search' => $search, 'status' => $statusFilter, 'page' => $requestedPage];
+    }
+
+    // Giữ trang yêu cầu cho URL thao tác
+    private function renderList(User $viewer, array $filters, string $statusPopup = '', int $statusUserId = 0): View
+    {
+        $search = $filters['search'];
+        $statusFilter = $filters['status'];
+        $requestedPage = $filters['page'];
         $query = User::query()->visibleTo($viewer)->matching($search);
         if ($statusFilter !== '') {
             $query->where('status', (int) $statusFilter);
@@ -39,9 +97,7 @@ class UserController extends Controller
         $showUserListActions = in_array($viewer->user_type, [User::TYPE_MANAGER, User::TYPE_ADMIN], true);
         $userActions = [];
         foreach ($users as $user) { // Xác định quyền hiển thị nút thao tác trên từng người dùng trong danh sách
-            $userActions[$user->id] = $viewer->user_type === User::TYPE_ADMIN
-                || ($viewer->user_type === User::TYPE_MANAGER && $user->user_type === User::TYPE_USER
-                    && $user->department === $viewer->department);
+            $userActions[$user->id] = Gate::forUser($viewer)->allows('manage', $user);
         }
 
         // Trả về view với dữ liệu hiển thị
@@ -54,6 +110,10 @@ class UserController extends Controller
             'userStatuses'        => UserConstants::USER_STATUSES,
             'showUserListActions' => $showUserListActions,
             'userActions'         => $userActions,
+            'actionUrl'           => route('users.actions', ['q' => $search, 'status' => $statusFilter, 'page' => $requestedPage]),
+            'statusPopup'         => $statusPopup,
+            'statusUserId'        => $statusUserId,
+            'statusMessage'       => $statusPopup === 'lock' ? __('messages.confirm_user_lock') : __('messages.confirm_user_unlock'),
         ]);
     }
 }
