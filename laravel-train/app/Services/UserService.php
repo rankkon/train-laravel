@@ -15,49 +15,88 @@ class UserService
 {
     public function __construct(private UserValidationService $validation) {}
 
-    // Tạo người dùng trong transaction
-    public function save(int $userId, array $values): array
+    // Lấy danh sách vai trò và phòng ban được phép chọn khi thêm hoặc sửa người dùng
+    public function formOptions(User $viewer, ?User $editedUser = null): array
+    {
+        $userTypes = [
+            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
+            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
+        ];
+        $departments = UserConstants::DEPARTMENTS;
+        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
+            $userTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
+            $departments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
+        }
+        if ($editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN) {
+            $userTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
+        }
+
+        return ['user_types' => $userTypes, 'departments' => $departments];
+    }
+
+    // Thêm hoặc cập nhật người dùng trong transaction
+    public function save(int $userId, array $values, int $editedUserId = 0): array
     {
         $options = [];
         try {
-            DB::transaction(function () use ($userId, $values, &$options): void {
+            DB::transaction(function () use ($userId, $values, $editedUserId, &$options): void {
                 $currentUser = User::query()->whereKey($userId)->lockForUpdate()->first();
                 if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
                     throw new AuthenticationException;
                 }
-                Gate::forUser($currentUser)->authorize('create', User::class);
-
-                $userTypes = [
-                    User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
-                    User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
-                ];
-                $departments = UserConstants::DEPARTMENTS;
-                if ($currentUser->user_type === User::TYPE_MANAGER) {
-                    $userTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
-                    $departments = [$currentUser->department => UserConstants::DEPARTMENTS[$currentUser->department]];
+                $editedUser = null;
+                if ($editedUserId > 0) {
+                    $editedUser = $currentUser;
+                    if ($editedUserId !== $userId) {
+                        $editedUser = User::query()->whereKey($editedUserId)->lockForUpdate()->first();
+                    }
+                    abort_if($editedUser === null, 404);
+                    Gate::forUser($currentUser)->authorize('manage', $editedUser);
+                    $values['username'] = $editedUser->username;
+                    if ($editedUser->user_type === User::TYPE_ADMIN) {
+                        $values['user_type'] = (string) User::TYPE_ADMIN;
+                    }
+                } else {
+                    Gate::forUser($currentUser)->authorize('create', User::class);
                 }
-                $options = ['user_types' => $userTypes, 'departments' => $departments];
 
-                $errors = $this->validation->fields($values, $userTypes, $departments, checkDuplicates: false); // Kiểm tra lại các trường
+                // kiểm tra lại danh mục theo quyền hiện tại trong transaction
+                $options = $this->formOptions($currentUser, $editedUser);
+
+                $errors = $this->validation->fields($values, $options['user_types'], $options['departments'], checkDuplicates: false, editedUserId: $editedUserId); // Kiểm tra lại các trường
                 if ($errors === []) {
-                    $errors = $this->validation->duplicates($values);
+                    $errors = $this->validation->duplicates($values, editedUserId: $editedUserId);
                 }
                 if ($errors !== []) {
                     throw ValidationException::withMessages($errors);
                 }
 
-                $newUser = new User;
-                $newUser->username = $values['username'];
-                $newUser->full_name = $values['full_name'];
-                $newUser->password_hash = md5($values['password']);
-                $newUser->email = $values['email'] === '' ? null : $values['email'];
-                $newUser->birth_date = $values['birth_date'] === '' ? null : $values['birth_date'];
-                $newUser->user_type = (int) $values['user_type'];
-                $newUser->department = (int) $values['department'];
-                $newUser->status = User::STATUS_ACTIVE;
-                $newUser->created_at = now()->format('Y-m-d H:i:s');
-                $newUser->update_at = null;
-                $newUser->save();
+                if ($editedUser !== null) {
+                    User::query()->whereKey($editedUserId)->update([
+                        'full_name'  => $values['full_name'],
+                        'email'      => $values['email'] === '' ? null : $values['email'],
+                        'birth_date' => $values['birth_date'] === '' ? null : $values['birth_date'],
+                        'user_type'  => (int) $values['user_type'],
+                        'department' => (int) $values['department'],
+                        'update_at'  => now()->format('Y-m-d H:i:s'),
+                    ]);
+                    if ($values['password'] !== '') {
+                        User::query()->whereKey($editedUserId)->update(['password_hash' => md5($values['password'])]);
+                    }
+                } else {
+                    $newUser = new User;
+                    $newUser->username = $values['username'];
+                    $newUser->full_name = $values['full_name'];
+                    $newUser->password_hash = md5($values['password']);
+                    $newUser->email = $values['email'] === '' ? null : $values['email'];
+                    $newUser->birth_date = $values['birth_date'] === '' ? null : $values['birth_date'];
+                    $newUser->user_type = (int) $values['user_type'];
+                    $newUser->department = (int) $values['department'];
+                    $newUser->status = User::STATUS_ACTIVE;
+                    $newUser->created_at = now()->format('Y-m-d H:i:s');
+                    $newUser->update_at = null;
+                    $newUser->save();
+                }
             });
         } catch (ValidationException $error) {
             return [

@@ -18,12 +18,12 @@
     <main class="user-create">
         <h1 class="user-form-title">{{ $formTitle }}</h1>
 
-        <form method="post" action="{{ route('users.create.submit') }}" id="user-form" class="user-form" novalidate>
+        <form method="post" action="{{ $formAction }}" id="user-form" class="user-form" novalidate>
             <div class="user-form-fields">
                 <div class="user-form-field">
                     <label for="username">Tên đăng nhập <span class="required-marker">*</span></label>
                     <input type="text" id="username" name="username" value="{{ $values['username'] }}" required
-                        @if ($isConfirmation) disabled @endif
+                        @if ($isConfirmation || $editedUserId > 0) disabled @endif
                         @if (isset($errors['username'])) class="user-input-error" @endif>
                     @if (isset($errors['username']))
                         <p class="user-field-error">{{ $errors['username'] }}</p>
@@ -41,8 +41,15 @@
                 </div>
 
                 <div class="user-form-field">
-                    <label for="password">Mật khẩu <span class="required-marker">*</span></label>
-                    <input type="password" id="password" name="password" value="{{ $values['password'] }}" required
+                    <label for="password">
+                        @if ($editedUserId > 0)
+                            Mật khẩu mới
+                        @else
+                            Mật khẩu <span class="required-marker">*</span>
+                        @endif
+                    </label>
+                    <input type="password" id="password" name="password" value="{{ $values['password'] }}"
+                        @if ($editedUserId === 0) required @endif
                         @if ($isConfirmation) disabled @endif
                         @if (isset($errors['password'])) class="user-input-error" @endif>
                     @if (isset($errors['password']))
@@ -74,7 +81,7 @@
                     <label for="user-type">Loại người dùng <span class="required-marker">*</span></label>
                     <div class="user-select-control">
                         <select id="user-type" name="user_type" required
-                            @if ($isConfirmation) disabled @endif
+                            @if ($isConfirmation || $isAdminAccount) disabled @endif
                             @if (isset($errors['user_type'])) class="user-input-error" @endif>
                             @foreach ($newUserTypes as $code => $name)
                                 <option value="{{ $code }}" @selected($values['user_type'] === (string) $code)>{{ $name }}</option>

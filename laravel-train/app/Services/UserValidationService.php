@@ -8,7 +8,7 @@ use App\Models\User;
 class UserValidationService
 {
     // Kiểm tra các trường người dùng, quyền chọn danh mục và dữ liệu trùng
-    public function fields(array $values, array $userTypes, array $departments, array $errors = [], bool $checkDuplicates = true): array
+    public function fields(array $values, array $userTypes, array $departments, array $errors = [], bool $checkDuplicates = true, int $editedUserId = 0): array
     {
         foreach ($values as $field => $value) {
             if (isset($errors[$field])) {
@@ -21,7 +21,9 @@ class UserValidationService
             } elseif ($field === 'full_name') {
                 $message = $this->fullName($value);
             } elseif ($field === 'password') {
-                $message = $this->password($value);
+                if ($editedUserId === 0 || $value !== '') {
+                    $message = $this->password($value);
+                }
             } elseif ($field === 'email') {
                 $message = $this->email($value);
             } elseif ($field === 'birth_date') {
@@ -37,18 +39,18 @@ class UserValidationService
             }
         }
 
-        return $checkDuplicates ? $this->duplicates($values, $errors) : $errors; // Tách kiểm tra trùng thành bước riêng trong transaction
+        return $checkDuplicates ? $this->duplicates($values, $errors, $editedUserId) : $errors; // Tách kiểm tra trùng thành bước riêng trong transaction
     }
 
     // Kiểm tra trùng tên đăng nhập và email
-    public function duplicates(array $values, array $errors = []): array
+    public function duplicates(array $values, array $errors = [], int $editedUserId = 0): array
     {
         // Kiểm tra trùng dữ liệu username và email khi trường hợp lệ
-        if (! isset($errors['username']) && User::query()->where('username', $values['username'])->exists()) {
+        if ($editedUserId === 0 && ! isset($errors['username']) && User::query()->where('username', $values['username'])->exists()) {
             $errors['username'] = __('messages.username_exists');
         }
         if (! isset($errors['email']) && $values['email'] !== ''
-            && User::query()->where('email', $values['email'])->exists()) {
+            && User::query()->where('email', $values['email'])->where('id', '!=', $editedUserId)->exists()) {
             $errors['email'] = __('messages.user_email_exists');
         }
 

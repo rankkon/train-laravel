@@ -69,7 +69,7 @@
                                 @if ($userActions[$user->id])
                                     <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
                                         <input type="hidden" name="user_id" value="{{ $user->id }}">
-                                        <button type="button" class="user-edit" title="Sửa" disabled>✎</button>
+                                        <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
                                         @if ($user->status === \App\Models\User::STATUS_ACTIVE)
                                             <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa">
                                                 <svg class="user-status-icon" viewBox="0 0 24 24">
