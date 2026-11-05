@@ -30,7 +30,7 @@ class UserController extends Controller
     // Xử lý nhập, xác nhận, rời form và lưu người dùng mới
     public function create(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService): View|RedirectResponse
     {
-        Gate::authorize('create', User::class);
+        Gate::authorize('create', User::class); // Kiểm tra quyền mở và xử lý form thêm người dùng
 
         $viewer = $request->user();
         $newUserTypes = [
@@ -64,16 +64,17 @@ class UserController extends Controller
         $exitMessage = __('messages.confirm_exit');
         $session = $request->session();
 
-        if ($request->isMethod('post')) {
+        if ($request->isMethod('post')) { // Đọc thao tác gửi từ form
             $action = $request->post('action');
             if ($action === null) {
                 $action = 'validate';
             }
             abort_unless(is_string($action), 400);
             if ($action !== 'save' && $action !== 'confirm_save') {
-                $session->forget('user_create_save_pending');
+                $session->forget('user_create_save_pending'); // Hủy cờ popup xác nhận khi chuyển thao tác
             }
 
+            // Ánh xạ thao tác rời form sang route đích
             $exitActions = [
                 'exit_dashboard' => 'dashboard',
                 'exit_users'     => 'users.index',
@@ -81,6 +82,7 @@ class UserController extends Controller
                 'exit_logout'    => 'logout',
             ];
 
+            // Xử lý xác nhận hoặc hủy rời form
             if ($action === 'confirm_exit' || $action === 'cancel_exit') {
                 $exitDestination = $session->get('user_create_exit', '');
                 abort_if($exitDestination === '' || ($action === 'confirm_exit' && $exitDestination === 'logout'), 400);
@@ -91,9 +93,9 @@ class UserController extends Controller
                     return redirect()->route($exitDestination, status: 303);
                 }
             } else {
-                $session->forget('user_create_exit');
+                $session->forget('user_create_exit'); // Hủy đích rời form cũ khi bắt đầu 1 thao tác khác
 
-                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) {
+                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Chỉ cho phép mở, hủy popup và lưu khi nháp đã xác nhận hợp lệ
                     abort_unless($isConfirmation, 400);
                     if ($action === 'confirm_save') {
                         $session->put('user_create_save_pending', true);
@@ -103,7 +105,7 @@ class UserController extends Controller
                         $session->forget('user_create_save_pending');
 
                         try {
-                            $saving = $userService->save($viewer->id, $values);
+                            $saving = $userService->save($viewer->id, $values); // lưu dữ liệu từ nháp
                         } catch (AuthenticationException) {
                             Auth::logout();
 
@@ -113,7 +115,7 @@ class UserController extends Controller
                         $errors = $saving['errors'];
                         $newUserTypes = $saving['options']['user_types'];
                         $newUserDepartments = $saving['options']['departments'];
-                        if ($errors === []) {
+                        if ($errors === []) { // Nếu lưu thành công thì xóa nháp và chuyển về danh sách user
                             $draftService->clear($session);
 
                             return redirect()->route('users.index', status: 303);
