@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Constants\UserConstants;
 use App\Models\User;
+use App\Services\UserDraftService;
 use App\Services\UserService;
 use App\Services\UserValidationService;
 use Illuminate\Auth\AuthenticationException;
@@ -26,8 +27,8 @@ class UserController extends Controller
         return $this->renderList($viewer, $this->listFilters($request));
     }
 
-    // Hiển thị form thêm mới người dùng và kiểm tra dữ liệu
-    public function create(Request $request, UserValidationService $validation): View
+    // Xử lý nhập, xác nhận, rời form và lưu người dùng mới
+    public function create(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService): View|RedirectResponse
     {
         Gate::authorize('create', User::class);
 
@@ -53,27 +54,132 @@ class UserController extends Controller
             'department' => (string) array_key_first($newUserDepartments),
         ];
 
-        $errors = [];
+        $draft = $draftService->prepare($request, $values); // Nạp dữ liệu và trạng thái form từ bản nháp
+        $values = $draft['values'];
+        $errors = $draft['errors'];
+        $isConfirmation = $draft['confirmed'];
+        $showSavePopup = false;
+        $showExitPopup = false;
+        $exitDestination = '';
+        $exitMessage = __('messages.confirm_exit');
+        $session = $request->session();
+
         if ($request->isMethod('post')) {
             $action = $request->post('action');
             if ($action === null) {
                 $action = 'validate';
             }
-            abort_unless($action === 'validate', 400);
+            abort_unless(is_string($action), 400);
+            if ($action !== 'save' && $action !== 'confirm_save') {
+                $session->forget('user_create_save_pending');
+            }
 
-            foreach (array_keys($values) as $field) {
-                $value = $request->post($field);
-                $values[$field] = '';
-                if ($value !== null) {
-                    if (is_string($value)) {
-                        $values[$field] = $value;
-                    } else {
-                        $errors[$field] = __('messages.invalid_form_value');
+            $exitActions = [
+                'exit_dashboard' => 'dashboard',
+                'exit_users'     => 'users.index',
+                'exit_list'      => 'leaves.index',
+                'exit_logout'    => 'logout',
+            ];
+
+            if ($action === 'confirm_exit' || $action === 'cancel_exit') {
+                $exitDestination = $session->get('user_create_exit', '');
+                abort_if($exitDestination === '' || ($action === 'confirm_exit' && $exitDestination === 'logout'), 400);
+                $session->forget('user_create_exit');
+                if ($action === 'confirm_exit') {
+                    $draftService->clear($session);
+
+                    return redirect()->route($exitDestination, status: 303);
+                }
+            } else {
+                $session->forget('user_create_exit');
+
+                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) {
+                    abort_unless($isConfirmation, 400);
+                    if ($action === 'confirm_save') {
+                        $session->put('user_create_save_pending', true);
+                        $showSavePopup = true;
+                    } elseif ($action === 'save') {
+                        abort_unless($session->get('user_create_save_pending') === true, 400);
+                        $session->forget('user_create_save_pending');
+
+                        try {
+                            $saving = $userService->save($viewer->id, $values);
+                        } catch (AuthenticationException) {
+                            Auth::logout();
+
+                            return redirect()->route('login', status: 303);
+                        }
+
+                        $errors = $saving['errors'];
+                        $newUserTypes = $saving['options']['user_types'];
+                        $newUserDepartments = $saving['options']['departments'];
+                        if ($errors === []) {
+                            $draftService->clear($session);
+
+                            return redirect()->route('users.index', status: 303);
+                        }
+                        $isConfirmation = false;
+                        $session->put('user_create_draft.confirmed', false);
+                        $session->put('user_create_draft.errors', $errors);
+                    }
+                } elseif ($action === 'clear') {
+                    $draftService->clear($session);
+
+                    return redirect()->route('users.create', status: 303);
+                } elseif ($action === 'back') {
+                    abort_unless($isConfirmation, 400);
+                    $isConfirmation = false;
+                    $session->put('user_create_draft.confirmed', false);
+                } else {
+                    abort_unless($action === 'validate' || isset($exitActions[$action]), 400);
+
+                    if ($action === 'validate' || ! $isConfirmation) {
+                        $errors = [];
+                        foreach (array_keys($values) as $field) {
+                            $value = $request->post($field);
+                            $values[$field] = '';
+                            if ($value !== null) {
+                                if (is_string($value)) {
+                                    $values[$field] = $value;
+                                } else {
+                                    $errors[$field] = __('messages.invalid_form_value');
+                                }
+                            }
+                            if ($action !== 'validate' && $values[$field] === $draft['values'][$field]
+                                && isset($draft['errors'][$field])) {
+                                $errors[$field] = $draft['errors'][$field];
+                            }
+                        }
+                    }
+
+                    if ($action === 'validate') {
+                        $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors);
+                        $isConfirmation = $errors === [];
+                    }
+
+                    $session->put('user_create_draft', array_replace($draft, [
+                        'values'    => $values,
+                        'errors'    => $errors,
+                        'confirmed' => $isConfirmation,
+                    ]));
+
+                    if (isset($exitActions[$action])) {
+                        $exitDestination = $exitActions[$action];
+                        $hasChanges = $values !== $draft['initial_values'] || $errors !== []; // So sánh với dữ liệu ban đầu để hỏi trước khi rời form
+                        if ($hasChanges || $exitDestination === 'logout') {
+                            $session->put('user_create_exit', $exitDestination);
+                            $showExitPopup = true;
+                            if ($exitDestination === 'logout') {
+                                $exitMessage = $hasChanges ? __('messages.confirm_logout_with_changes') : __('messages.confirm_logout');
+                            }
+                        } else {
+                            $draftService->clear($session);
+
+                            return redirect()->route($exitDestination, status: 303);
+                        }
                     }
                 }
             }
-
-            $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors);
         }
 
         return view('users.form', [
@@ -83,6 +189,11 @@ class UserController extends Controller
             'newUserTypes'       => $newUserTypes,
             'newUserDepartments' => $newUserDepartments,
             'maximumBirthDate'   => now()->subDay()->toDateString(),
+            'isConfirmation'     => $isConfirmation,
+            'showSavePopup'      => $showSavePopup,
+            'showExitPopup'      => $showExitPopup,
+            'exitDestination'    => $exitDestination,
+            'exitMessage'        => $exitMessage,
         ]);
     }
 

@@ -4,9 +4,11 @@ namespace App\Exceptions;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\SessionGuard;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -24,6 +26,15 @@ class Handler extends ExceptionHandler
         $this->dontReportWhen(fn (Throwable $exception): bool => $exception instanceof HttpResponseException
             && $exception->getResponse()->getStatusCode() < 400);
         $this->dontReportDuplicates();
+        $this->reportable(function (QueryException $exception): ?bool { // Ghi lỗi database và thông tin lỗi, không ghi kèm SQL chứa hash mật khẩu
+            if (! str_contains(strtolower($exception->getSql()), 'password_hash')) {
+                return null;
+            }
+
+            Log::error($exception->getPrevious()->getMessage(), $this->buildExceptionContext($exception));
+
+            return false;
+        });
         $this->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
         );

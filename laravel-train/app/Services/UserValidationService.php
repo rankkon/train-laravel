@@ -8,7 +8,7 @@ use App\Models\User;
 class UserValidationService
 {
     // Kiểm tra các trường người dùng, quyền chọn danh mục và dữ liệu trùng
-    public function fields(array $values, array $userTypes, array $departments, array $errors = []): array
+    public function fields(array $values, array $userTypes, array $departments, array $errors = [], bool $checkDuplicates = true): array
     {
         foreach ($values as $field => $value) {
             if (isset($errors[$field])) {
@@ -37,6 +37,12 @@ class UserValidationService
             }
         }
 
+        return $checkDuplicates ? $this->duplicates($values, $errors) : $errors; // Tách kiểm tra trùng thành bước riêng trong transaction
+    }
+
+    // Kiểm tra trùng tên đăng nhập và email
+    public function duplicates(array $values, array $errors = []): array
+    {
         // Kiểm tra trùng dữ liệu username và email khi trường hợp lệ
         if (! isset($errors['username']) && User::query()->where('username', $values['username'])->exists()) {
             $errors['username'] = __('messages.username_exists');
