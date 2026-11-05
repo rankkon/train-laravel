@@ -27,11 +27,31 @@ class UserController extends Controller
         return $this->renderList($viewer, $this->listFilters($request));
     }
 
-    // Xử lý nhập, xác nhận, rời form và lưu người dùng mới
+    // Kiểm tra quyền tạo và chuyển sang luồng thêm user
     public function create(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService): View|RedirectResponse
     {
         Gate::authorize('create', User::class); // Kiểm tra quyền mở và xử lý form thêm người dùng
 
+        return $this->form($request, $validation, $draftService, $userService);
+    }
+
+    // Kiểm tra tài khoản và quyền quản lý trước khi mở form sửa người dùng
+    public function edit(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService, string $user): View|RedirectResponse
+    {
+        $editedUserId = filter_var($user, FILTER_VALIDATE_INT);
+        abort_if($editedUserId === false || $editedUserId < 1, 400);
+
+        $editedUser = User::query()->findOrFail($editedUserId); // Lấy tài khoản sửa và kiểm tra quyền
+        Gate::authorize('manage', $editedUser);
+
+        return $this->form($request, $validation, $draftService, $userService, $editedUser);
+    }
+
+    // Xử lý các bước nhập, xác nhận, rời form và lưu user
+    private function form(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService, ?User $editedUser = null): View|RedirectResponse
+    {
+        $editedUserId = $editedUser?->id ?? 0;
+        $isAdminAccount = $editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN;
         $viewer = $request->user();
         $newUserTypes = [
             User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
@@ -42,19 +62,23 @@ class UserController extends Controller
             $newUserTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
             $newUserDepartments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
         }
+        if ($isAdminAccount) {
+            $newUserTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
+        }
 
         // Khởi tạo giá trị mặc định cho form thêm mới người dùng
         $values = [
-            'username'   => '',
+            'username'   => $editedUser?->username ?? '',
             'full_name'  => '',
             'password'   => '',
             'email'      => '',
             'birth_date' => '',
-            'user_type'  => (string) User::TYPE_USER,
+            'user_type'  => (string) ($isAdminAccount ? User::TYPE_ADMIN : User::TYPE_USER),
             'department' => (string) array_key_first($newUserDepartments),
         ];
 
-        $draft = $draftService->prepare($request, $values); // Nạp dữ liệu và trạng thái form từ bản nháp
+        $defaultValues = $values;
+        $draft = $draftService->prepare($request, $values, $editedUser); // Nạp dữ liệu và trạng thái form từ bản nháp
         $values = $draft['values'];
         $errors = $draft['errors'];
         $isConfirmation = $draft['confirmed'];
@@ -95,7 +119,7 @@ class UserController extends Controller
             } else {
                 $session->forget('user_create_exit'); // Hủy đích rời form cũ khi bắt đầu 1 thao tác khác
 
-                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Chỉ cho phép mở, hủy popup và lưu khi nháp đã xác nhận hợp lệ
+                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Chỉ cho phép mở, hủy popup và lưu dữ liệu khi nháp đã xác nhận hợp lệ
                     abort_unless($isConfirmation, 400);
                     if ($action === 'confirm_save') {
                         $session->put('user_create_save_pending', true);
@@ -105,7 +129,7 @@ class UserController extends Controller
                         $session->forget('user_create_save_pending');
 
                         try {
-                            $saving = $userService->save($viewer->id, $values); // lưu dữ liệu từ nháp
+                            $saving = $userService->save($viewer->id, $values, $editedUserId); // lưu dữ liệu từ nháp
                         } catch (AuthenticationException) {
                             Auth::logout();
 
@@ -125,9 +149,18 @@ class UserController extends Controller
                         $session->put('user_create_draft.errors', $errors);
                     }
                 } elseif ($action === 'clear') {
-                    $draftService->clear($session);
+                    if ($editedUserId > 0) {
+                        $values = $defaultValues;
+                        $errors = [];
+                        $isConfirmation = false;
+                        $session->put('user_create_draft.values', $values);
+                        $session->put('user_create_draft.errors', []);
+                        $session->put('user_create_draft.confirmed', false);
+                    } else {
+                        $draftService->clear($session);
 
-                    return redirect()->route('users.create', status: 303);
+                        return redirect()->route('users.create', status: 303);
+                    }
                 } elseif ($action === 'back') {
                     abort_unless($isConfirmation, 400);
                     $isConfirmation = false;
@@ -138,6 +171,11 @@ class UserController extends Controller
                     if ($action === 'validate' || ! $isConfirmation) {
                         $errors = [];
                         foreach (array_keys($values) as $field) {
+                            if (($editedUserId > 0 && $field === 'username') || ($isAdminAccount && $field === 'user_type')) {
+                                $values[$field] = (string) $editedUser->getRawOriginal($field);
+
+                                continue;
+                            }
                             $value = $request->post($field);
                             $values[$field] = '';
                             if ($value !== null) {
@@ -155,11 +193,11 @@ class UserController extends Controller
                     }
 
                     if ($action === 'validate') {
-                        $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors);
+                        $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors, editedUserId: $editedUserId);
                         $isConfirmation = $errors === [];
                     }
 
-                    $session->put('user_create_draft', array_replace($draft, [
+                    $session->put('user_create_draft', array_replace($draft, [ // cập nhật dữ liệu, lỗi và trạng thái xác nhận, giữ nguyên dữ liệu ban đầu cho nháp
                         'values'    => $values,
                         'errors'    => $errors,
                         'confirmed' => $isConfirmation,
@@ -185,7 +223,8 @@ class UserController extends Controller
         }
 
         return view('users.form', [
-            'formTitle'          => 'Thêm mới người dùng',
+            'formTitle'          => $editedUser === null ? 'Thêm mới người dùng' : 'Sửa người dùng',
+            'formAction'         => $editedUser === null ? route('users.create.submit') : route('users.edit.submit', ['user' => $editedUserId]),
             'values'             => $values,
             'errors'             => $errors,
             'newUserTypes'       => $newUserTypes,
@@ -196,6 +235,8 @@ class UserController extends Controller
             'showExitPopup'      => $showExitPopup,
             'exitDestination'    => $exitDestination,
             'exitMessage'        => $exitMessage,
+            'editedUserId'       => $editedUserId,
+            'isAdminAccount'     => $isAdminAccount,
         ]);
     }
 

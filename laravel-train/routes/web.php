@@ -30,6 +30,11 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/users', [UserController::class, 'handleListAction'])->name('users.actions');
     Route::get('/users/create', [UserController::class, 'create'])->name('users.create'); // mở form thêm người dùng
     Route::post('/users/create', [UserController::class, 'create'])->name('users.create.submit');
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+    Route::post('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit.submit');
+    Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users/{user}/edit', function (): void {
+        abort(405, '', ['Allow' => 'GET, HEAD, POST']);
+    });
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users/create', function (): void {
         abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
