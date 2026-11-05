@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Constants\UserConstants;
 use App\Models\User;
+use App\Services\UserDraftService;
 use App\Services\UserService;
+use App\Services\UserValidationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,178 @@ class UserController extends Controller
         $viewer = $request->user(); // Tài khoản đăng nhập hiện tại
 
         return $this->renderList($viewer, $this->listFilters($request));
+    }
+
+    // Xử lý nhập, xác nhận, rời form và lưu người dùng mới
+    public function create(Request $request, UserValidationService $validation, UserDraftService $draftService, UserService $userService): View|RedirectResponse
+    {
+        Gate::authorize('create', User::class); // Kiểm tra quyền mở và xử lý form thêm người dùng
+
+        $viewer = $request->user();
+        $newUserTypes = [
+            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
+            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
+        ];
+        $newUserDepartments = UserConstants::DEPARTMENTS;
+        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
+            $newUserTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
+            $newUserDepartments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
+        }
+
+        // Khởi tạo giá trị mặc định cho form thêm mới người dùng
+        $values = [
+            'username'   => '',
+            'full_name'  => '',
+            'password'   => '',
+            'email'      => '',
+            'birth_date' => '',
+            'user_type'  => (string) User::TYPE_USER,
+            'department' => (string) array_key_first($newUserDepartments),
+        ];
+
+        $draft = $draftService->prepare($request, $values); // Nạp dữ liệu và trạng thái form từ bản nháp
+        $values = $draft['values'];
+        $errors = $draft['errors'];
+        $isConfirmation = $draft['confirmed'];
+        $showSavePopup = false;
+        $showExitPopup = false;
+        $exitDestination = '';
+        $exitMessage = __('messages.confirm_exit');
+        $session = $request->session();
+
+        if ($request->isMethod('post')) { // Đọc thao tác gửi từ form
+            $action = $request->post('action');
+            if ($action === null) {
+                $action = 'validate';
+            }
+            abort_unless(is_string($action), 400);
+            if ($action !== 'save' && $action !== 'confirm_save') {
+                $session->forget('user_create_save_pending'); // Hủy cờ popup xác nhận khi chuyển thao tác
+            }
+
+            // Ánh xạ thao tác rời form sang route đích
+            $exitActions = [
+                'exit_dashboard' => 'dashboard',
+                'exit_users'     => 'users.index',
+                'exit_list'      => 'leaves.index',
+                'exit_logout'    => 'logout',
+            ];
+
+            // Xử lý xác nhận hoặc hủy rời form
+            if ($action === 'confirm_exit' || $action === 'cancel_exit') {
+                $exitDestination = $session->get('user_create_exit', '');
+                abort_if($exitDestination === '' || ($action === 'confirm_exit' && $exitDestination === 'logout'), 400);
+                $session->forget('user_create_exit');
+                if ($action === 'confirm_exit') {
+                    $draftService->clear($session);
+
+                    return redirect()->route($exitDestination, status: 303);
+                }
+            } else {
+                $session->forget('user_create_exit'); // Hủy đích rời form cũ khi bắt đầu 1 thao tác khác
+
+                if (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Chỉ cho phép mở, hủy popup và lưu khi nháp đã xác nhận hợp lệ
+                    abort_unless($isConfirmation, 400);
+                    if ($action === 'confirm_save') {
+                        $session->put('user_create_save_pending', true);
+                        $showSavePopup = true;
+                    } elseif ($action === 'save') {
+                        abort_unless($session->get('user_create_save_pending') === true, 400);
+                        $session->forget('user_create_save_pending');
+
+                        try {
+                            $saving = $userService->save($viewer->id, $values); // lưu dữ liệu từ nháp
+                        } catch (AuthenticationException) {
+                            Auth::logout();
+
+                            return redirect()->route('login', status: 303);
+                        }
+
+                        $errors = $saving['errors'];
+                        $newUserTypes = $saving['options']['user_types'];
+                        $newUserDepartments = $saving['options']['departments'];
+                        if ($errors === []) { // Nếu lưu thành công thì xóa nháp và chuyển về danh sách user
+                            $draftService->clear($session);
+
+                            return redirect()->route('users.index', status: 303);
+                        }
+                        $isConfirmation = false;
+                        $session->put('user_create_draft.confirmed', false);
+                        $session->put('user_create_draft.errors', $errors);
+                    }
+                } elseif ($action === 'clear') {
+                    $draftService->clear($session);
+
+                    return redirect()->route('users.create', status: 303);
+                } elseif ($action === 'back') {
+                    abort_unless($isConfirmation, 400);
+                    $isConfirmation = false;
+                    $session->put('user_create_draft.confirmed', false);
+                } else {
+                    abort_unless($action === 'validate' || isset($exitActions[$action]), 400);
+
+                    if ($action === 'validate' || ! $isConfirmation) {
+                        $errors = [];
+                        foreach (array_keys($values) as $field) {
+                            $value = $request->post($field);
+                            $values[$field] = '';
+                            if ($value !== null) {
+                                if (is_string($value)) {
+                                    $values[$field] = $value;
+                                } else {
+                                    $errors[$field] = __('messages.invalid_form_value');
+                                }
+                            }
+                            if ($action !== 'validate' && $values[$field] === $draft['values'][$field]
+                                && isset($draft['errors'][$field])) {
+                                $errors[$field] = $draft['errors'][$field];
+                            }
+                        }
+                    }
+
+                    if ($action === 'validate') {
+                        $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors);
+                        $isConfirmation = $errors === [];
+                    }
+
+                    $session->put('user_create_draft', array_replace($draft, [
+                        'values'    => $values,
+                        'errors'    => $errors,
+                        'confirmed' => $isConfirmation,
+                    ]));
+
+                    if (isset($exitActions[$action])) {
+                        $exitDestination = $exitActions[$action];
+                        $hasChanges = $values !== $draft['initial_values'] || $errors !== []; // So sánh với dữ liệu ban đầu để hỏi trước khi rời form
+                        if ($hasChanges || $exitDestination === 'logout') {
+                            $session->put('user_create_exit', $exitDestination);
+                            $showExitPopup = true;
+                            if ($exitDestination === 'logout') {
+                                $exitMessage = $hasChanges ? __('messages.confirm_logout_with_changes') : __('messages.confirm_logout');
+                            }
+                        } else {
+                            $draftService->clear($session);
+
+                            return redirect()->route($exitDestination, status: 303);
+                        }
+                    }
+                }
+            }
+        }
+
+        return view('users.form', [
+            'formTitle'          => 'Thêm mới người dùng',
+            'values'             => $values,
+            'errors'             => $errors,
+            'newUserTypes'       => $newUserTypes,
+            'newUserDepartments' => $newUserDepartments,
+            'maximumBirthDate'   => now()->subDay()->toDateString(),
+            'isConfirmation'     => $isConfirmation,
+            'showSavePopup'      => $showSavePopup,
+            'showExitPopup'      => $showExitPopup,
+            'exitDestination'    => $exitDestination,
+            'exitMessage'        => $exitMessage,
+        ]);
     }
 
     // Xử lý khóa hoặc mở khóa người dùng từ danh sách

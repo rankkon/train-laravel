@@ -1,0 +1,238 @@
+.user-create-page {
+    min-height: 100vh;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+    background: #FFFFFF;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #000000;
+}
+
+.user-create,
+.user-create * {
+    box-sizing: border-box;
+}
+
+.user-create {
+    position: fixed;
+    top: 75px;
+    right: 0;
+    bottom: 0;
+    left: 269px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    min-height: 0;
+    padding: 24px;
+}
+
+.user-form-title {
+    flex: none;
+    margin: 0;
+    font: inherit;
+    line-height: 20px;
+}
+
+.user-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 16px;
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+}
+
+.user-form-fields {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 20px;
+}
+
+.user-form-field {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 450px);
+    align-items: start;
+    column-gap: 12px;
+    margin-bottom: 12px;
+}
+
+.user-form-field:last-child {
+    margin-bottom: 0;
+}
+
+.user-form-field > label {
+    padding-top: 6px;
+    line-height: 19px;
+}
+
+.user-form .required-marker {
+    margin-left: 4px;
+    color: #BD0101;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.user-form-field input,
+.user-form-field select {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    margin: 0;
+    padding: 5px 10px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.5);
+    font: inherit;
+    line-height: 20px;
+    color: #000000;
+}
+
+.user-form-date input {
+    width: 170px;
+    max-width: 100%;
+}
+
+.user-form-date input::-webkit-calendar-picker-indicator {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.user-select-control {
+    position: relative;
+    width: 220px;
+    max-width: 100%;
+}
+
+.user-select-control select {
+    appearance: none;
+    padding-right: 32px;
+    background: #FFFFFF;
+    color: #1E1E1E;
+}
+
+.user-select-control::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    background: #1E1E1E;
+    clip-path: polygon(25% 30%, 50% 55%, 75% 30%, 82.5% 37.5%, 50% 70%, 17.5% 37.5%);
+    pointer-events: none;
+}
+
+.user-form-field > p {
+    grid-column: 2;
+    margin: 6px 0 0;
+    overflow-wrap: anywhere;
+    line-height: 20px;
+}
+
+#user-form .user-input-error {
+    border: 1px solid #BD0101;
+    outline-color: #BD0101;
+}
+
+#user-form .user-field-error {
+    color: #BD0101;
+}
+
+.user-form-actions {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-left: 132px;
+}
+
+.user-form-actions button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 220px;
+    max-width: 100%;
+    min-width: 0;
+    height: 50px;
+    padding: 4px 24px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 19px;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.user-form-next {
+    background: #007EC6;
+}
+
+.user-form-next:enabled:hover {
+    background: #006EAD;
+}
+
+.user-form-next:enabled:active {
+    background: #005F96;
+}
+
+.user-form-actions .user-form-clear {
+    background: #E2005C;
+    color: rgba(255, 255, 255, 0.87);
+}
+
+.user-form-clear:hover {
+    background: #C60050;
+}
+
+.user-form-clear:active {
+    background: #AA0045;
+}
+
+.user-form input:disabled,
+.user-form select:disabled {
+    background-color: rgba(204, 204, 204, 0.5);
+    color: #000000;
+    opacity: 1;
+}
+
+.user-form select:disabled {
+    color: #1E1E1E;
+}
+
+@media (max-width: 1000px) {
+    .user-create {
+        padding: 16px;
+    }
+
+    .user-form-actions {
+        padding-left: 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .user-form-field {
+        grid-template-columns: minmax(0, 1fr);
+        row-gap: 6px;
+    }
+
+    .user-form-field > label {
+        padding-top: 0;
+    }
+
+    .user-form-field > p {
+        grid-column: 1;
+        margin-top: 4px;
+    }
+}

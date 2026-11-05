@@ -20,10 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (): string => route('login'));
         $middleware->redirectUsersTo(fn (): string => route('dashboard'));
         $middleware->trimStrings(except: [
-            fn (Request $request): bool => $request->is('login', 'users', 'leaves', 'leaves/actions', 'leaves/create', 'leaves/*/edit'),
+            fn (Request $request): bool => $request->is('login', 'users', 'users/create', 'leaves', 'leaves/actions', 'leaves/create', 'leaves/*/edit'),
         ]);
         $middleware->convertEmptyStringsToNull(except: [
-            fn (Request $request): bool => $request->is('login', 'users', 'leaves', 'leaves/actions', 'leaves/create', 'leaves/*/edit'),
+            fn (Request $request): bool => $request->is('login', 'users', 'users/create', 'leaves', 'leaves/actions', 'leaves/create', 'leaves/*/edit'),
         ]);
     })
     ->withExceptions()
