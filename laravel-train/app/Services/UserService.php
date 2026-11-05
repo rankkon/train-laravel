@@ -15,6 +15,25 @@ class UserService
 {
     public function __construct(private UserValidationService $validation) {}
 
+    // Lấy danh sách vai trò và phòng ban được phép chọn khi thêm hoặc sửa người dùng
+    public function formOptions(User $viewer, ?User $editedUser = null): array
+    {
+        $userTypes = [
+            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
+            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
+        ];
+        $departments = UserConstants::DEPARTMENTS;
+        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
+            $userTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
+            $departments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
+        }
+        if ($editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN) {
+            $userTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
+        }
+
+        return ['user_types' => $userTypes, 'departments' => $departments];
+    }
+
     // Thêm hoặc cập nhật người dùng trong transaction
     public function save(int $userId, array $values, int $editedUserId = 0): array
     {
@@ -41,21 +60,10 @@ class UserService
                     Gate::forUser($currentUser)->authorize('create', User::class);
                 }
 
-                $userTypes = [
-                    User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
-                    User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
-                ];
-                $departments = UserConstants::DEPARTMENTS;
-                if ($currentUser->user_type === User::TYPE_MANAGER) {
-                    $userTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
-                    $departments = [$currentUser->department => UserConstants::DEPARTMENTS[$currentUser->department]];
-                }
-                if ($editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN) {
-                    $userTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]];
-                }
-                $options = ['user_types' => $userTypes, 'departments' => $departments];
+                // kiểm tra lại danh mục theo quyền hiện tại trong transaction
+                $options = $this->formOptions($currentUser, $editedUser);
 
-                $errors = $this->validation->fields($values, $userTypes, $departments, checkDuplicates: false, editedUserId: $editedUserId); // Kiểm tra lại các trường
+                $errors = $this->validation->fields($values, $options['user_types'], $options['departments'], checkDuplicates: false, editedUserId: $editedUserId); // Kiểm tra lại các trường
                 if ($errors === []) {
                     $errors = $this->validation->duplicates($values, editedUserId: $editedUserId);
                 }

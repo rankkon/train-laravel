@@ -53,18 +53,10 @@ class UserController extends Controller
         $editedUserId = $editedUser?->id ?? 0;
         $isAdminAccount = $editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN;
         $viewer = $request->user();
-        $newUserTypes = [
-            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
-            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
-        ];
-        $newUserDepartments = UserConstants::DEPARTMENTS;
-        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
-            $newUserTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
-            $newUserDepartments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
-        }
-        if ($isAdminAccount) {
-            $newUserTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
-        }
+        // Lấy danh mục theo quyền hiện tại để hiển thị và kiểm tra dữ liệu form
+        $options = $userService->formOptions($viewer, $editedUser);
+        $newUserTypes = $options['user_types'];
+        $newUserDepartments = $options['departments'];
 
         // Khởi tạo giá trị mặc định cho form thêm mới người dùng
         $values = [
