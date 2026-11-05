@@ -18,58 +18,86 @@
     <main class="user-create">
         <h1 class="user-form-title">{{ $formTitle }}</h1>
 
-        <form method="post" action="{{ route('users.create') }}" id="user-form" class="user-form" novalidate>
+        <form method="post" action="{{ route('users.create.submit') }}" id="user-form" class="user-form" novalidate>
             <div class="user-form-fields">
                 <div class="user-form-field">
                     <label for="username">Tên đăng nhập <span class="required-marker">*</span></label>
-                    <input type="text" id="username" name="username" value="{{ $values['username'] }}" required>
+                    <input type="text" id="username" name="username" value="{{ $values['username'] }}" required
+                        @if (isset($errors['username'])) class="user-input-error" @endif>
+                    @if (isset($errors['username']))
+                        <p class="user-field-error">{{ $errors['username'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field">
                     <label for="full-name">Tên người dùng <span class="required-marker">*</span></label>
-                    <input type="text" id="full-name" name="full_name" value="{{ $values['full_name'] }}" required>
+                    <input type="text" id="full-name" name="full_name" value="{{ $values['full_name'] }}" required
+                        @if (isset($errors['full_name'])) class="user-input-error" @endif>
+                    @if (isset($errors['full_name']))
+                        <p class="user-field-error">{{ $errors['full_name'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field">
                     <label for="password">Mật khẩu <span class="required-marker">*</span></label>
-                    <input type="password" id="password" name="password" value="{{ $values['password'] }}" required>
+                    <input type="password" id="password" name="password" value="{{ $values['password'] }}" required
+                        @if (isset($errors['password'])) class="user-input-error" @endif>
+                    @if (isset($errors['password']))
+                        <p class="user-field-error">{{ $errors['password'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="{{ $values['email'] }}">
+                    <input type="email" id="email" name="email" value="{{ $values['email'] }}"
+                        @if (isset($errors['email'])) class="user-input-error" @endif>
+                    @if (isset($errors['email']))
+                        <p class="user-field-error">{{ $errors['email'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field user-form-date">
                     <label for="birth-date">Ngày sinh</label>
-                    <input type="date" id="birth-date" name="birth_date" value="{{ $values['birth_date'] }}">
+                    <input type="date" id="birth-date" name="birth_date" value="{{ $values['birth_date'] }}" max="{{ $maximumBirthDate }}"
+                        @if (isset($errors['birth_date'])) class="user-input-error" @endif>
+                    @if (isset($errors['birth_date']))
+                        <p class="user-field-error">{{ $errors['birth_date'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field">
                     <label for="user-type">Loại người dùng <span class="required-marker">*</span></label>
                     <div class="user-select-control">
-                        <select id="user-type" name="user_type" required>
+                        <select id="user-type" name="user_type" required
+                            @if (isset($errors['user_type'])) class="user-input-error" @endif>
                             @foreach ($newUserTypes as $code => $name)
                                 <option value="{{ $code }}" @selected($values['user_type'] === (string) $code)>{{ $name }}</option>
                             @endforeach
                         </select>
                     </div>
+                    @if (isset($errors['user_type']))
+                        <p class="user-field-error">{{ $errors['user_type'] }}</p>
+                    @endif
                 </div>
 
                 <div class="user-form-field">
                     <label for="department">Phòng ban <span class="required-marker">*</span></label>
                     <div class="user-select-control">
-                        <select id="department" name="department" required>
+                        <select id="department" name="department" required
+                            @if (isset($errors['department'])) class="user-input-error" @endif>
                             @foreach ($newUserDepartments as $code => $name)
                                 <option value="{{ $code }}" @selected($values['department'] === (string) $code)>{{ $name }}</option>
                             @endforeach
                         </select>
                     </div>
+                    @if (isset($errors['department']))
+                        <p class="user-field-error">{{ $errors['department'] }}</p>
+                    @endif
                 </div>
             </div>
 
             <div class="user-form-actions">
-                <button type="button" class="user-form-next" disabled>Tiếp theo</button>
+                <button type="submit" name="action" value="validate" class="user-form-next">Tiếp theo</button>
                 <button type="button" class="user-form-clear" disabled>Xóa trống</button>
             </div>
         </form>

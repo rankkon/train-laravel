@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Constants\UserConstants;
 use App\Models\User;
 use App\Services\UserService;
+use App\Services\UserValidationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,8 +26,8 @@ class UserController extends Controller
         return $this->renderList($viewer, $this->listFilters($request));
     }
 
-    // Hiển thị form thêm mới người dùng theo quyền của tài khoản đăng nhập
-    public function create(Request $request): View
+    // Hiển thị form thêm mới người dùng và kiểm tra dữ liệu
+    public function create(Request $request, UserValidationService $validation): View
     {
         Gate::authorize('create', User::class);
 
@@ -52,11 +53,36 @@ class UserController extends Controller
             'department' => (string) array_key_first($newUserDepartments),
         ];
 
+        $errors = [];
+        if ($request->isMethod('post')) {
+            $action = $request->post('action');
+            if ($action === null) {
+                $action = 'validate';
+            }
+            abort_unless($action === 'validate', 400);
+
+            foreach (array_keys($values) as $field) {
+                $value = $request->post($field);
+                $values[$field] = '';
+                if ($value !== null) {
+                    if (is_string($value)) {
+                        $values[$field] = $value;
+                    } else {
+                        $errors[$field] = __('messages.invalid_form_value');
+                    }
+                }
+            }
+
+            $errors = $validation->fields($values, $newUserTypes, $newUserDepartments, $errors);
+        }
+
         return view('users.form', [
             'formTitle'          => 'Thêm mới người dùng',
             'values'             => $values,
+            'errors'             => $errors,
             'newUserTypes'       => $newUserTypes,
             'newUserDepartments' => $newUserDepartments,
+            'maximumBirthDate'   => now()->subDay()->toDateString(),
         ]);
     }
 
