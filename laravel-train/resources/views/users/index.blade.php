@@ -31,7 +31,9 @@
             </form>
             @if ($showUserListActions)
                 <div class="user-list-actions">
-                    <button type="button" class="leave-add" disabled>Thêm mới</button>
+                    @can('create', \App\Models\User::class)
+                        <a href="{{ route('users.create') }}" class="leave-add">Thêm mới</a>
+                    @endcan
                     <form method="post" action="{{ $actionUrl }}" id="user-bulk-form">
                         <button name="action" value="open_bulk_lock" class="leave-add leave-cancel">Khóa nhiều</button>
                     </form>

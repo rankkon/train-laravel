@@ -14,4 +14,20 @@ class UserConstants
         User::STATUS_LOCKED => 'Đã khóa',
         User::STATUS_ACTIVE => 'Đang hoạt động',
     ];
+
+    // Danh mục loại người dùng
+    public const USER_TYPES = [
+        User::TYPE_USER    => 'User',
+        User::TYPE_MANAGER => 'Manager',
+        User::TYPE_ADMIN   => 'Admin',
+    ];
+
+    // Danh mục mã và tên phòng ban
+    public const DEPARTMENTS = [
+        1 => 'Ban quản lý',
+        2 => 'Nhân sự',
+        3 => 'Kế toán',
+        4 => 'Kỹ thuật',
+        5 => 'Sản xuất',
+    ];
 }

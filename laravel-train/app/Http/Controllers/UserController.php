@@ -25,6 +25,41 @@ class UserController extends Controller
         return $this->renderList($viewer, $this->listFilters($request));
     }
 
+    // Hiển thị form thêm mới người dùng theo quyền của tài khoản đăng nhập
+    public function create(Request $request): View
+    {
+        Gate::authorize('create', User::class);
+
+        $viewer = $request->user();
+        $newUserTypes = [
+            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
+            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
+        ];
+        $newUserDepartments = UserConstants::DEPARTMENTS;
+        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
+            $newUserTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
+            $newUserDepartments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
+        }
+
+        // Khởi tạo giá trị mặc định cho form thêm mới người dùng
+        $values = [
+            'username'   => '',
+            'full_name'  => '',
+            'password'   => '',
+            'email'      => '',
+            'birth_date' => '',
+            'user_type'  => (string) User::TYPE_USER,
+            'department' => (string) array_key_first($newUserDepartments),
+        ];
+
+        return view('users.form', [
+            'formTitle'          => 'Thêm mới người dùng',
+            'values'             => $values,
+            'newUserTypes'       => $newUserTypes,
+            'newUserDepartments' => $newUserDepartments,
+        ]);
+    }
+
     // Xử lý khóa hoặc mở khóa người dùng từ danh sách
     public function handleListAction(Request $request, UserService $userService): View|RedirectResponse
     {

@@ -6,6 +6,13 @@ use App\Models\User;
 
 class UserPolicy
 {
+    // Xác thực quyền tạo người dùng
+    public function create(User $user): bool
+    {
+        return $user->status === User::STATUS_ACTIVE
+            && in_array($user->user_type, [User::TYPE_MANAGER, User::TYPE_ADMIN], true); // Chỉ Manager và Admin đang hoạt động được thêm người dùng mới
+    }
+
     // Xác thực quyền quản lý người dùng
     public function manage(User $user, User $targetUser): bool
     {

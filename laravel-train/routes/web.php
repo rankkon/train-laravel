@@ -28,6 +28,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index'); // Hiện danh sách người dùng cho tài khoản đăng nhập
     Route::post('/users', [UserController::class, 'handleListAction'])->name('users.actions');
+    Route::get('/users/create', [UserController::class, 'create'])->name('users.create'); // mở form thêm người dùng
     Route::match(['PUT', 'PATCH', 'DELETE', 'OPTIONS'], '/users', function (): void {
         abort(405, '', ['Allow' => 'GET, HEAD, POST']);
     });
