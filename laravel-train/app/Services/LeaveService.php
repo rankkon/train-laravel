@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Constants\LeaveConstants;
+use App\Mail\LeaveCreatedMail;
+use App\Mail\LeaveProcessedMail;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -28,9 +32,11 @@ class LeaveService
         $fullPath = null;
         $leave = null;
         $attachmentPath = '';
+        $createdMail = null;
+        $approverEmail = '';
 
         try {
-            DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath): void {
+            DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath, &$createdMail, &$approverEmail): void {
                 $ownerId = $userId;
                 if ($leaveId > 0) {
                     $leave = LeaveRequest::query()->whereKey($leaveId)->lockForUpdate()->first();
@@ -103,11 +109,18 @@ class LeaveService
                 if ($leaveId > 0) {
                     LeaveRequest::query()->whereKey($leaveId)->update($changes);
                 } else {
-                    LeaveRequest::query()->insert($changes + [
+                    $createdLeaveId = LeaveRequest::query()->insertGetId($changes + [
                         'user_id'    => $userId,
                         'status'     => LeaveRequest::STATUS_NEW,
                         'created_at' => now()->format('Y-m-d H:i:s'),
                     ]);
+                    $approver = $users->get((int) $values['approver_id']);
+                    $approverEmail = trim((string) $approver?->email);
+                    if ($approverEmail !== '') { // Chỉ chuẩn bị mail nếu người duyệt có email
+                        $createdMail = new LeaveCreatedMail(
+                            $createdLeaveId, $values, $currentUser->full_name, $approver->full_name,
+                        );
+                    }
                 }
             });
         } catch (ValidationException $error) {
@@ -125,6 +138,11 @@ class LeaveService
 
         if ($leave !== null && $leave->attachment_path !== $attachmentPath) {
             $this->removeOldAttachment($leave->attachment_path);
+        }
+
+        // Đưa thông báo người duyệt vào queue
+        if ($createdMail !== null) {
+            $this->queueMailAfterCommit($approverEmail, $createdMail);
         }
 
         return [];
@@ -170,7 +188,7 @@ class LeaveService
     private function removeOldAttachment(string $path): void
     {
         try {
-            if (LeaveRequest::query()->where('attachment_path', $path)->count() > 0) {
+            if (LeaveRequest::query()->where('attachment_path', $path)->exists()) {
                 return;
             }
             $fullPath = $this->attachmentFullPath($path);
@@ -182,11 +200,14 @@ class LeaveService
         }
     }
 
-    // Duyệt hoặc hủy đơn trong transaction
+    // Duyệt hoặc hủy đơn trong transaction và đưa email thông báo vào queue
     public function process(int $userId, int $leaveId, string $action, string $reason): void
     {
+        $processedMail = null;
+        $creatorEmail = '';
+
         try {
-            DB::transaction(function () use ($userId, $leaveId, $action, $reason): void {
+            DB::transaction(function () use ($userId, $leaveId, $action, $reason, &$processedMail, &$creatorEmail): void {
                 $leave = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->lockForUpdate()
@@ -225,16 +246,51 @@ class LeaveService
                     ];
                 }
 
-                LeaveRequest::query()
+                $updated = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->where('status', LeaveRequest::STATUS_NEW)
                     ->update($changes);
+
+                $creatorEmail = trim((string) $owner->email);
+                if ($updated > 0 && $creatorEmail !== '') { // Chỉ chuẩn bị email khi đơn đã được cập nhật và người tạo có email
+                    $processedMail = new LeaveProcessedMail(
+                        $leaveId,
+                        [
+                            'title'         => $leave->title,
+                            'content'       => (string) $leave->content,
+                            'leave_type'    => $leave->leave_type,
+                            'start_date'    => $leave->getRawOriginal('start_date'),
+                            'end_date'      => $leave->getRawOriginal('end_date'),
+                            'status'        => $changes['status'],
+                            'processed_at'  => $processedAt->format('Y-m-d H:i:s'),
+                            'cancel_reason' => $action === 'approve' ? '' : $reason,
+                        ],
+                        $owner->full_name,
+                    );
+                }
             });
         } catch (Throwable $error) {
             $this->rollbackTransaction();
 
             throw $error;
         }
+
+        // Sau khi commit thành công, đưa thông báo email vào queue
+        if ($processedMail !== null) {
+            $this->queueMailAfterCommit($creatorEmail, $processedMail);
+        }
+    }
+
+    // Đưa mail vào queue sau khi transaction thành công
+    private function queueMailAfterCommit(string $recipientEmail, Mailable $mail): void
+    {
+        DB::afterCommit(function () use ($recipientEmail, $mail): void {
+            try {
+                Mail::to($recipientEmail)->queue($mail);
+            } catch (Throwable $error) {
+                report($error);
+            }
+        });
     }
 
     // Rollback transaction nếu có lỗi xảy ra

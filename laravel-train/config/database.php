@@ -32,6 +32,14 @@ return [
 
     'connections' => [
 
+        'queue' => [
+            'driver' => 'sqlite',
+            'database' => env('DB_QUEUE_DATABASE', database_path('queue.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+            'busy_timeout' => 5000,
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
