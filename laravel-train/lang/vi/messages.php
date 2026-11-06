@@ -69,4 +69,8 @@ return [
     'leave_rollback_failed' => '※Không thể rollback giao dịch lưu đơn.',
     'leave_created_mail_subject' => 'Đơn mới chờ duyệt',
     'leave_created_mail_intro' => ':name vừa tạo một đơn mới và đang chờ bạn duyệt.',
+    'leave_approved_mail_subject' => 'Đơn của bạn đã được duyệt',
+    'leave_cancelled_mail_subject' => 'Đơn của bạn đã bị hủy',
+    'leave_approved_mail_intro' => 'Đơn của bạn đã được duyệt.',
+    'leave_cancelled_mail_intro' => 'Đơn của bạn đã bị hủy.',
 ];

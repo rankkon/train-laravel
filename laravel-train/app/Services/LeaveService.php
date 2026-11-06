@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Constants\LeaveConstants;
 use App\Mail\LeaveCreatedMail;
+use App\Mail\LeaveProcessedMail;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
@@ -204,11 +205,14 @@ class LeaveService
         }
     }
 
-    // Duyệt hoặc hủy đơn trong transaction
+    // Duyệt hoặc hủy đơn trong transaction và đưa email thông báo vào queue
     public function process(int $userId, int $leaveId, string $action, string $reason): void
     {
+        $processedMail = null;
+        $creatorEmail = '';
+
         try {
-            DB::transaction(function () use ($userId, $leaveId, $action, $reason): void {
+            DB::transaction(function () use ($userId, $leaveId, $action, $reason, &$processedMail, &$creatorEmail): void {
                 $leave = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->lockForUpdate()
@@ -247,15 +251,44 @@ class LeaveService
                     ];
                 }
 
-                LeaveRequest::query()
+                $updated = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->where('status', LeaveRequest::STATUS_NEW)
                     ->update($changes);
+
+                $creatorEmail = trim((string) $owner->email);
+                if ($updated > 0 && $creatorEmail !== '') { // Chỉ chuẩn bị email khi đơn đã được cập nhật và người tạo có email
+                    $processedMail = new LeaveProcessedMail(
+                        $leaveId,
+                        [
+                            'title'         => $leave->title,
+                            'content'       => (string) $leave->content,
+                            'leave_type'    => $leave->leave_type,
+                            'start_date'    => $leave->getRawOriginal('start_date'),
+                            'end_date'      => $leave->getRawOriginal('end_date'),
+                            'status'        => $changes['status'],
+                            'processed_at'  => $processedAt->format('Y-m-d H:i:s'),
+                            'cancel_reason' => $action === 'approve' ? '' : $reason,
+                        ],
+                        $owner->full_name,
+                    );
+                }
             });
         } catch (Throwable $error) {
             $this->rollbackTransaction();
 
             throw $error;
+        }
+
+        // Sau khi commit thành công, đưa thông báo email vào queue
+        if ($processedMail !== null) {
+            DB::afterCommit(function () use ($creatorEmail, $processedMail): void {
+                try {
+                    Mail::to($creatorEmail)->queue($processedMail);
+                } catch (Throwable $error) {
+                    report($error);
+                }
+            });
         }
     }
 
