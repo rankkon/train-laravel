@@ -3,12 +3,24 @@
 namespace App\Mail;
 
 use App\Constants\LeaveConstants;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
-class LeaveCreatedMail extends Mailable
+// Cấu hình email thông báo đơn mới
+class LeaveCreatedMail extends Mailable implements ShouldQueue
 {
+    use Queueable;
+
+    public int $tries = 3; // mail gửi tối đa 3 lần
+
+    public array $backoff = [60, 60]; // Chờ 60s trước mỗi lần thử
+
+    public int $timeout = 60; // Timeout xử lý gửi mail
+
+    // Nhập dữ liệu đơn, tên người tạo và người duyệt để dựng nội dung mail
     public function __construct(
         public int $leaveId,
         public array $values,
@@ -16,6 +28,7 @@ class LeaveCreatedMail extends Mailable
         public string $approverName,
     ) {}
 
+    // Khai báo tiêu đề email
     public function envelope(): Envelope
     {
         return new Envelope(
@@ -23,6 +36,7 @@ class LeaveCreatedMail extends Mailable
         );
     }
 
+    // Truyền tên loại đơn để hiển thị
     public function content(): Content
     {
         return new Content(

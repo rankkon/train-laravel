@@ -114,7 +114,7 @@ class LeaveService
                     ]);
                     $approver = $users->get((int) $values['approver_id']);
                     $approverEmail = trim((string) $approver?->email);
-                    if ($approverEmail !== '') { // Chỉ thực hiện gửi mail nếu người duyệt có email
+                    if ($approverEmail !== '') { // Chỉ chuẩn bị mail nếu người duyệt có email
                         $createdMail = new LeaveCreatedMail(
                             $createdLeaveId, $values, $currentUser->full_name, $approver->full_name,
                         );
@@ -138,11 +138,11 @@ class LeaveService
             $this->removeOldAttachment($leave->attachment_path);
         }
 
-        // Gửi mail cho người duyệt
+        // Đưa thông báo người duyệt vào queue
         if ($createdMail !== null) {
             DB::afterCommit(function () use ($approverEmail, $createdMail): void {
                 try {
-                    Mail::to($approverEmail)->send($createdMail); // Chỉ gửi mail sau khi transaction thành công
+                    Mail::to($approverEmail)->queue($createdMail);
                 } catch (Throwable $error) {
                     report($error);
                 }
