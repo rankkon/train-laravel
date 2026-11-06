@@ -67,4 +67,6 @@ return [
     'failed_attachment_delete' => '※Không thể xóa tệp của giao dịch lưu đơn thất bại.',
     'old_attachment_delete_failed' => '※Không thể xóa tệp cũ sau khi sửa đơn.',
     'leave_rollback_failed' => '※Không thể rollback giao dịch lưu đơn.',
+    'leave_created_mail_subject' => 'Đơn mới chờ duyệt',
+    'leave_created_mail_intro' => ':name vừa tạo một đơn mới và đang chờ bạn duyệt.',
 ];

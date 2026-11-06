@@ -3,12 +3,14 @@
 namespace App\Services;
 
 use App\Constants\LeaveConstants;
+use App\Mail\LeaveCreatedMail;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -28,9 +30,11 @@ class LeaveService
         $fullPath = null;
         $leave = null;
         $attachmentPath = '';
+        $createdMail = null;
+        $approverEmail = '';
 
         try {
-            DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath): void {
+            DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath, &$createdMail, &$approverEmail): void {
                 $ownerId = $userId;
                 if ($leaveId > 0) {
                     $leave = LeaveRequest::query()->whereKey($leaveId)->lockForUpdate()->first();
@@ -103,11 +107,18 @@ class LeaveService
                 if ($leaveId > 0) {
                     LeaveRequest::query()->whereKey($leaveId)->update($changes);
                 } else {
-                    LeaveRequest::query()->insert($changes + [
+                    $createdLeaveId = LeaveRequest::query()->insertGetId($changes + [
                         'user_id'    => $userId,
                         'status'     => LeaveRequest::STATUS_NEW,
                         'created_at' => now()->format('Y-m-d H:i:s'),
                     ]);
+                    $approver = $users->get((int) $values['approver_id']);
+                    $approverEmail = trim((string) $approver?->email);
+                    if ($approverEmail !== '') { // Chỉ thực hiện gửi mail nếu người duyệt có email
+                        $createdMail = new LeaveCreatedMail(
+                            $createdLeaveId, $values, $currentUser->full_name, $approver->full_name,
+                        );
+                    }
                 }
             });
         } catch (ValidationException $error) {
@@ -125,6 +136,17 @@ class LeaveService
 
         if ($leave !== null && $leave->attachment_path !== $attachmentPath) {
             $this->removeOldAttachment($leave->attachment_path);
+        }
+
+        // Gửi mail cho người duyệt
+        if ($createdMail !== null) {
+            DB::afterCommit(function () use ($approverEmail, $createdMail): void {
+                try {
+                    Mail::to($approverEmail)->send($createdMail); // Chỉ gửi mail sau khi transaction thành công
+                } catch (Throwable $error) {
+                    report($error);
+                }
+            });
         }
 
         return [];
