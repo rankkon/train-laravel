@@ -8,6 +8,7 @@ use App\Mail\LeaveProcessedMail;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -141,13 +142,7 @@ class LeaveService
 
         // Đưa thông báo người duyệt vào queue
         if ($createdMail !== null) {
-            DB::afterCommit(function () use ($approverEmail, $createdMail): void {
-                try {
-                    Mail::to($approverEmail)->queue($createdMail);
-                } catch (Throwable $error) {
-                    report($error);
-                }
-            });
+            $this->queueMailAfterCommit($approverEmail, $createdMail);
         }
 
         return [];
@@ -193,7 +188,7 @@ class LeaveService
     private function removeOldAttachment(string $path): void
     {
         try {
-            if (LeaveRequest::query()->where('attachment_path', $path)->count() > 0) {
+            if (LeaveRequest::query()->where('attachment_path', $path)->exists()) {
                 return;
             }
             $fullPath = $this->attachmentFullPath($path);
@@ -282,14 +277,20 @@ class LeaveService
 
         // Sau khi commit thành công, đưa thông báo email vào queue
         if ($processedMail !== null) {
-            DB::afterCommit(function () use ($creatorEmail, $processedMail): void {
-                try {
-                    Mail::to($creatorEmail)->queue($processedMail);
-                } catch (Throwable $error) {
-                    report($error);
-                }
-            });
+            $this->queueMailAfterCommit($creatorEmail, $processedMail);
         }
+    }
+
+    // Đưa mail vào queue sau khi transaction thành công
+    private function queueMailAfterCommit(string $recipientEmail, Mailable $mail): void
+    {
+        DB::afterCommit(function () use ($recipientEmail, $mail): void {
+            try {
+                Mail::to($recipientEmail)->queue($mail);
+            } catch (Throwable $error) {
+                report($error);
+            }
+        });
     }
 
     // Rollback transaction nếu có lỗi xảy ra
