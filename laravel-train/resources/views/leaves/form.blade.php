@@ -134,8 +134,8 @@
                         </header>
                         <p class="popup-message">{{ __('messages.confirm_save') }}</p>
                         <div class="popup-actions">
-                            <button name="action" value="save" class="popup-button popup-confirm">OK</button>
-                            <button name="action" value="cancel_save" class="popup-button popup-cancel" autofocus>Cancel</button>
+                            <button name="action" value="save" class="popup-button popup-confirm" autofocus>OK</button>
+                            <button name="action" value="cancel_save" class="popup-button popup-cancel">Cancel</button>
                         </div>
                     </section>
                 </div>
@@ -153,11 +153,11 @@
                 <p id="leave-exit-message" class="popup-message">{{ $exitMessage }}</p>
                 <div class="popup-actions">
                     @if ($exitDestination === 'logout')
-                        <button form="leave-form" formaction="{{ route('logout') }}" id="leave-exit-confirm" class="popup-button popup-confirm">Đồng ý</button>
+                        <button form="leave-form" formaction="{{ route('logout') }}" id="leave-exit-confirm" class="popup-button popup-confirm" autofocus>Đồng ý</button>
                     @else
-                        <button form="leave-form" name="action" value="confirm_exit" id="leave-exit-confirm" class="popup-button popup-confirm">Đồng ý</button>
+                        <button form="leave-form" name="action" value="confirm_exit" id="leave-exit-confirm" class="popup-button popup-confirm" autofocus>Đồng ý</button>
                     @endif
-                    <button form="leave-form" name="action" value="cancel_exit" id="leave-exit-cancel" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button form="leave-form" name="action" value="cancel_exit" id="leave-exit-cancel" class="popup-button popup-cancel">Không</button>
                 </div>
             </section>
         </div>

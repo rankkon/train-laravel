@@ -130,8 +130,8 @@
                 </header>
                 <p class="popup-message">{{ __('messages.confirm_save') }}</p>
                 <div class="popup-actions">
-                    <button form="user-form" name="action" value="save" class="popup-button popup-confirm">Đồng ý</button>
-                    <button form="user-form" name="action" value="cancel_save" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button form="user-form" name="action" value="save" class="popup-button popup-confirm" autofocus>Đồng ý</button>
+                    <button form="user-form" name="action" value="cancel_save" class="popup-button popup-cancel">Không</button>
                 </div>
             </section>
         </div>
@@ -146,11 +146,11 @@
                 <p class="popup-message">{{ $exitMessage }}</p>
                 <div class="popup-actions">
                     @if ($exitDestination === 'logout')
-                        <button form="user-form" formaction="{{ route('logout') }}" class="popup-button popup-confirm">Đồng ý</button>
+                        <button form="user-form" formaction="{{ route('logout') }}" class="popup-button popup-confirm" autofocus>Đồng ý</button>
                     @else
-                        <button form="user-form" name="action" value="confirm_exit" class="popup-button popup-confirm">Đồng ý</button>
+                        <button form="user-form" name="action" value="confirm_exit" class="popup-button popup-confirm" autofocus>Đồng ý</button>
                     @endif
-                    <button form="user-form" name="action" value="cancel_exit" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button form="user-form" name="action" value="cancel_exit" class="popup-button popup-cancel">Không</button>
                 </div>
             </section>
         </div>

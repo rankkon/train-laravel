@@ -49,4 +49,11 @@
         </div>
     </form>
 </div>
+<script>
+    document.getElementById('logout-confirm-toggle').addEventListener('change', function () {
+        if (this.checked) {
+            document.querySelector('.logout-confirm-popup .popup-confirm').focus();
+        }
+    });
+</script>
 @endif

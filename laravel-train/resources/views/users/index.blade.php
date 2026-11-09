@@ -18,27 +18,27 @@
 
     <main class="leave-list">
         <div class="leave-list-toolbar">
-            <form method="get" action="{{ route('users.index') }}" class="leave-search user-search">
+            <form method="get" action="{{ route('users.index') }}" id="user-search-form" class="leave-search user-search">
                 <label for="user-search">Mã/Tên user</label>
                 <input type="text" id="user-search" name="q" value="{{ $search }}">
-                <button type="submit" name="status" value="{{ $statusFilter }}" class="leave-search-button">Tìm kiếm</button>
-                <div class="user-status-filters">
-                    <button type="submit" name="status" value="{{ $activeStatusValue }}"
-                        class="user-status-filter{{ $statusFilter === '1' ? ' user-status-filter-selected' : '' }}">Đang hoạt động</button>
-                    <button type="submit" name="status" value="{{ $lockedStatusValue }}"
-                        class="user-status-filter{{ $statusFilter === '0' ? ' user-status-filter-selected' : '' }}">Đã khóa</button>
-                </div>
+                <select id="user-status" name="status" class="user-status-filter" aria-label="Trạng thái người dùng">
+                    <option value="1" @selected($statusFilter === '1')>Đang hoạt động</option>
+                    <option value="0" @selected($statusFilter === '0')>Đã khóa</option>
+                    <option value="" @selected($statusFilter === '')>Tất cả</option>
+                </select>
             </form>
-            @if ($showUserListActions)
-                <div class="user-list-actions">
+            <div class="leave-list-actions user-list-actions">
+                <button type="submit" form="user-search-form" class="leave-search-button">Tìm kiếm</button>
+                @if ($showUserListActions)
                     @can('create', \App\Models\User::class)
                         <a href="{{ route('users.create') }}" class="leave-add">Thêm mới</a>
                     @endcan
                     <form method="post" action="{{ $actionUrl }}" id="user-bulk-form">
-                        <button name="action" value="open_bulk_lock" class="leave-add leave-cancel">Khóa nhiều</button>
+                        <button name="action" value="open_bulk_lock" class="leave-add leave-cancel"
+                            @if (! $users->contains(fn ($user) => $userActions[$user->id] && in_array($user->id, $selectedUserIds, true))) disabled @endif>Khóa nhiều</button>
                     </form>
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
 
         <div class="leave-table-container">
@@ -71,7 +71,8 @@
                                         <input type="hidden" name="user_id" value="{{ $user->id }}">
                                         <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
                                         @if ($user->status === \App\Models\User::STATUS_ACTIVE)
-                                            <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa">
+                                            <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa"
+                                                @if (! in_array($user->id, $selectedUserIds, true)) disabled @endif>
                                                 <svg class="user-status-icon" viewBox="0 0 24 24">
                                                     <rect x="4" y="11" width="16" height="10" rx="2"></rect>
                                                     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -111,20 +112,51 @@
                 </header>
                 <p class="popup-message">{{ $statusMessage }}</p>
                 <div class="popup-actions">
-                    <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm">Đồng ý</button>
-                    <button name="action" value="{{ $statusCloseAction }}" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm" autofocus>Đồng ý</button>
+                    <button name="action" value="{{ $statusCloseAction }}" class="popup-button popup-cancel">Không</button>
                 </div>
             </form>
         </div>
     @endif
     <script>
         const selectAllUsers = document.getElementById('select-all-users');
-        const userCheckboxes = document.querySelectorAll('.user-table tbody input[type="checkbox"]:not(:disabled)'); // Chỉ lấy các checkbox không bị disabled
+        const userCheckboxes = [...document.querySelectorAll('.user-table tbody input[name="user_ids[]"]:not(:disabled)')];
+        const bulkLockButton = document.querySelector('#user-bulk-form button[value="open_bulk_lock"]');
 
-        selectAllUsers.addEventListener('change', function () { // Chọn hoặc bỏ chọn tất cả các checkbox khi checkbox đầu bảng thay đổi
+        function updateUserSelection() {
+            let selectedCount = 0;
+            for (const checkbox of userCheckboxes) {
+                if (checkbox.checked) {
+                    selectedCount++;
+                }
+                const lockButton = checkbox.closest('tr').querySelector('button[value="open_lock"]');
+                if (lockButton) {
+                    lockButton.disabled = !checkbox.checked;
+                }
+            }
+            if (bulkLockButton) {
+                bulkLockButton.disabled = selectedCount === 0;
+            }
+            selectAllUsers.disabled      = userCheckboxes.length === 0;
+            selectAllUsers.checked       = selectedCount > 0 && selectedCount === userCheckboxes.length;
+            selectAllUsers.indeterminate = selectedCount > 0 && selectedCount < userCheckboxes.length;
+        }
+
+        selectAllUsers.addEventListener('change', function () {
             for (const checkbox of userCheckboxes) {
                 checkbox.checked = selectAllUsers.checked;
             }
+            updateUserSelection();
+        });
+
+        for (const checkbox of userCheckboxes) {
+            checkbox.addEventListener('change', updateUserSelection);
+        }
+        window.addEventListener('pageshow', updateUserSelection);
+        updateUserSelection();
+
+        document.getElementById('user-status').addEventListener('change', function () {
+            this.form.requestSubmit();
         });
     </script>
 </body>

@@ -17,12 +17,14 @@
 
     <main class="leave-list">
         <div class="leave-list-toolbar">
-            <form method="get" action="{{ route('leaves.index') }}" class="leave-search">
+            <form method="get" action="{{ route('leaves.index') }}" id="leave-search-form" class="leave-search">
                 <label for="leave-search">Tên user/Loại đơn/Nội dung</label>
                 <input type="text" id="leave-search" name="q" value="{{ $search }}">
-                <button class="leave-search-button">Tìm kiếm</button>
             </form>
-            <a href="{{ route('leaves.create') }}" class="leave-add">Thêm mới đơn</a>
+            <div class="leave-list-actions">
+                <button type="submit" form="leave-search-form" class="leave-search-button">Tìm kiếm</button>
+                <a href="{{ route('leaves.create') }}" class="leave-add">Thêm mới đơn</a>
+            </div>
         </div>
 
         <div class="leave-table-container">
@@ -92,7 +94,7 @@
                 </header>
                 <p class="popup-message">{{ __('messages.confirm_approve') }}</p>
                 <div class="popup-actions">
-                    <button name="action" value="confirm_approve" class="popup-button popup-confirm">OK</button>
+                    <button name="action" value="confirm_approve" class="popup-button popup-confirm" autofocus>OK</button>
                     <button name="action" value="close_popup" class="popup-button popup-cancel" formnovalidate>Cancel</button>
                 </div>
             </form>
@@ -115,7 +117,7 @@
                     @endif
                 </div>
                 <div class="popup-actions leave-cancel-actions">
-                    <button name="action" value="confirm_cancel" class="popup-button popup-confirm">OK</button>
+                    <button name="action" value="confirm_cancel" class="popup-button popup-confirm" autofocus>OK</button>
                 </div>
             </form>
         </div>

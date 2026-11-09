@@ -368,8 +368,6 @@ class UserController extends Controller
             'users'               => $users,
             'search'              => $search,
             'statusFilter'        => $statusFilter,
-            'activeStatusValue'   => $statusFilter === (string) User::STATUS_ACTIVE ? '' : (string) User::STATUS_ACTIVE,
-            'lockedStatusValue'   => $statusFilter === (string) User::STATUS_LOCKED ? '' : (string) User::STATUS_LOCKED,
             'userStatuses'        => UserConstants::USER_STATUSES,
             'showUserListActions' => $showUserListActions,
             'userActions'         => $userActions,

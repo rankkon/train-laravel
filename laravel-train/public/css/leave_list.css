@@ -41,12 +41,19 @@
 
 .leave-search {
     display: grid;
-    grid-template-columns: 216px minmax(240px, 360px) 100px;
+    grid-template-columns: 216px minmax(0, 360px);
     flex: 1;
     min-width: 0;
     align-items: center;
     gap: 12px;
     margin: 0;
+}
+
+.leave-list-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
 }
 
 .leave-search label {
@@ -421,7 +428,7 @@
     }
 
     .leave-search {
-        grid-template-columns: minmax(0, 360px) 100px;
+        grid-template-columns: minmax(0, 360px);
     }
 
     .leave-search label {
@@ -448,7 +455,7 @@
         flex: none;
     }
 
-    .leave-add {
+    .leave-list-actions {
         align-self: flex-end;
     }
 
