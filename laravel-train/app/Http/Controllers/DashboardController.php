@@ -21,7 +21,8 @@ class DashboardController extends Controller
             $requestedPage = 1;
         }
         $page   = min($requestedPage, $lastPage); // trang thực tế sẽ hiển thị, không vượt quá trang cuối cùng
-        $leaves = $query->orderByDesc('leave.created_at') // Sắp xếp theo ngày tạo giảm dần
+        $leaves = $query->orderBy('leave.status')
+            ->orderByDesc('leave.created_at') // Sắp xếp theo ngày tạo giảm dần
             ->orderByDesc('leave.id') // Sắp xếp theo ID giảm dần khi trùng ngày tạo
             ->paginate($perPage, [
                 'leave.id', 'leave.leave_type', 'leave.created_at', 'leave.status',

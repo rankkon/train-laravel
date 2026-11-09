@@ -48,9 +48,12 @@
                             Mật khẩu <span class="required-marker">*</span>
                         @endif
                     </label>
-                    <input type="password" id="password" name="password" value="{{ $values['password'] }}"
-                        @if ($editedUserId === 0) required @endif
-                        @if (isset($errors['password'])) class="user-input-error" @endif>
+                    <div class="password-control">
+                        <input type="password" id="password" name="password" value="{{ $values['password'] }}"
+                            @if ($editedUserId === 0) required @endif
+                            @if (isset($errors['password'])) class="user-input-error" @endif>
+                        @include('password-toggle')
+                    </div>
                     <p class="user-field-error" data-form-error="password" @if (! isset($errors['password'])) hidden @endif>{{ $errors['password'] ?? '' }}</p>
                 </div>
 

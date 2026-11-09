@@ -103,7 +103,7 @@ class UserController extends Controller
                 abort_unless(is_string($exitDestination) && in_array($exitDestination, ['dashboard', 'users.index', 'leaves.index'], true), 400);
 
                 return redirect()->route($exitDestination, status: 303);
-            } elseif (($action === 'clear' && $editedUser === null) || $action === 'confirm_clear') {
+            } elseif ($action === 'confirm_clear') {
                 $values = $editedUser === null ? $clearValues : $originalValues;
                 if ($editedUser === null) {
                     $originalValues = $values;

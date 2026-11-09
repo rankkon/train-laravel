@@ -93,6 +93,10 @@
     color: #000000;
 }
 
+.user-form .password-control input {
+    padding-right: 40px;
+}
+
 .user-form-date input {
     width: 170px;
     max-width: 100%;

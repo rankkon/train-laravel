@@ -28,57 +28,59 @@
         </div>
 
         <div class="leave-table-container">
-            <table class="leave-table leave-management-table">
-                <thead>
-                    <tr>
-                        <th scope="col">STT</th>
-                        <th scope="col">Người dùng</th>
-                        <th scope="col">Loại đơn</th>
-                        <th scope="col">Ngày lập</th>
-                        <th scope="col">Trạng thái</th>
-                        <th scope="col">Ngày duty</th>
-                        <th scope="col">Mô tả</th>
-                        <th scope="col">Hành động</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($leaves as $leave)
-                        @php
-                            $canProcess = auth()->user()->can('process', $leave);
-                            $canEdit    = auth()->user()->can('update', $leave);
-                        @endphp
-                        <tr class="leave-row leave-status-{{ $leave->status }}">
-                            <td>{{ $leaves->firstItem() + $loop->index }}</td>
-                            <td>{{ $leave->full_name }}</td>
-                            <td>{{ $leaveTypes[$leave->leave_type] }}</td>
-                            <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
-                            <td>{{ $leaveStatuses[$leave->status] }}</td>
-                            <td>{{ $leave->getRawOriginal('end_date') }}</td>
-                            <td title="{{ $leave->title }}">
-                                <span class="leave-title">{{ $leave->title }}</span>
-                            </td>
-                            <td>
-                                @if ($canProcess || $canEdit)
-                                    <form method="post" action="{{ $actionUrl }}" class="leave-actions">
-                                        @if ($canProcess)
-                                            <input type="hidden" name="leave_id" value="{{ $leave->id }}">
-                                            <button name="action" value="open_approve" class="leave-approve" title="Duyệt">✓</button>
-                                        @endif
-                                        @if ($canEdit)
-                                            <a href="{{ route('leaves.edit', ['leave' => $leave->id]) }}" class="leave-edit" title="Sửa">✎</a>
-                                        @endif
-                                        @if ($canProcess)
-                                            <button name="action" value="open_cancel" class="leave-cancel" title="Hủy">×</button>
-                                        @endif
-                                    </form>
-                                @endif
-                            </td>
+            <div class="leave-table-scroll">
+                <table class="leave-table leave-management-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">STT</th>
+                            <th scope="col">Người dùng</th>
+                            <th scope="col">Loại đơn</th>
+                            <th scope="col">Ngày lập</th>
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col">Ngày duty</th>
+                            <th scope="col">Mô tả</th>
+                            <th scope="col">Hành động</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="8">{{ __('messages.no_leaves_found') }}</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse ($leaves as $leave)
+                            @php
+                                $canProcess = auth()->user()->can('process', $leave);
+                                $canEdit    = auth()->user()->can('update', $leave);
+                            @endphp
+                            <tr class="leave-row leave-status-{{ $leave->status }}">
+                                <td>{{ $leaves->firstItem() + $loop->index }}</td>
+                                <td>{{ $leave->full_name }}</td>
+                                <td>{{ $leaveTypes[$leave->leave_type] }}</td>
+                                <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
+                                <td>{{ $leaveStatuses[$leave->status] }}</td>
+                                <td>{{ $leave->getRawOriginal('end_date') }}</td>
+                                <td title="{{ $leave->title }}">
+                                    <span class="leave-title">{{ $leave->title }}</span>
+                                </td>
+                                <td>
+                                    @if ($canProcess || $canEdit)
+                                        <form method="post" action="{{ $actionUrl }}" class="leave-actions">
+                                            @if ($canProcess)
+                                                <input type="hidden" name="leave_id" value="{{ $leave->id }}">
+                                                <button name="action" value="open_approve" class="leave-approve" title="Duyệt">✓</button>
+                                            @endif
+                                            @if ($canEdit)
+                                                <a href="{{ route('leaves.edit', ['leave' => $leave->id]) }}" class="leave-edit" title="Sửa">✎</a>
+                                            @endif
+                                            @if ($canProcess)
+                                                <button name="action" value="open_cancel" class="leave-cancel" title="Hủy">×</button>
+                                            @endif
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="8">{{ __('messages.no_leaves_found') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         {{ $leaves->links('pagination') }}

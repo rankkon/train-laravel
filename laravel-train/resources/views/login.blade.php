@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập | Sanshin</title>
     <link rel="stylesheet" href="{{ asset('css/common.css') }}?v={{ filemtime(public_path('css/common.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}?v={{ filemtime(public_path('css/login.css')) }}">
 </head>
 <body class="login-page">
     <div class="login-surface">
@@ -46,6 +46,7 @@
                         required
                     >
                     <span class="login-placeholder">Mật khẩu</span>
+                    @include('password-toggle')
                 </div>
 
                 <div class="login-actions">

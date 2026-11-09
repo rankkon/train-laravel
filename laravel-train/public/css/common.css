@@ -324,3 +324,43 @@
 .form-popup-toggle:checked + .form-popup {
     display: flex;
 }
+
+.password-control {
+    position: relative;
+    min-width: 0;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 5px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #666666;
+    cursor: pointer;
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid #2864B4;
+    outline-offset: -2px;
+}
+
+.password-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
+.password-eye-slash {
+    display: none;
+}
+
+.password-toggle[aria-pressed="true"] .password-eye-slash {
+    display: block;
+}

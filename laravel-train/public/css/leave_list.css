@@ -123,14 +123,28 @@
 }
 
 .leave-table-container {
-    flex: 1;
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
     width: 100%;
     min-width: 0;
     min-height: 0;
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     background: #FFFFFF;
     border: 1px solid #B9B9B9;
     border-radius: 4px;
+}
+
+.leave-table-scroll {
+    min-width: min-content;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.leave-table-scroll::-webkit-scrollbar {
+    display: none;
 }
 
 .leave-table {
@@ -172,6 +186,15 @@
 .leave-table th:nth-child(5) { width: 105px; }
 .leave-table th:nth-child(6) { width: 104px; }
 
+.leave-table:not(.user-table) th:nth-child(1),
+.leave-table:not(.user-table) th:nth-child(4),
+.leave-table:not(.user-table) th:nth-child(6),
+.leave-table:not(.user-table) td:nth-child(1):not([colspan]),
+.leave-table:not(.user-table) td:nth-child(4),
+.leave-table:not(.user-table) td:nth-child(6) {
+    text-align: center;
+}
+
 .leave-table th:first-child,
 .leave-table td:first-child {
     text-overflow: clip;
@@ -180,6 +203,10 @@
 .leave-table th:last-child,
 .leave-table td:last-child {
     border-right: 0;
+}
+
+.leave-table tbody tr:last-child td {
+    border-bottom: 0;
 }
 
 .leave-table td:nth-child(5),
@@ -215,7 +242,7 @@
 }
 
 .leave-management-table th:last-child {
-    width: 140px;
+    width: 128px;
 }
 
 .leave-management-table .leave-title {
@@ -228,7 +255,7 @@
 
 .leave-management-table .leave-actions {
     justify-content: flex-end;
-    gap: 15px;
+    gap: 8px;
 }
 
 .leave-actions {

@@ -42,59 +42,61 @@
         </div>
 
         <div class="leave-table-container">
-            <table class="leave-table user-table">
-                <thead>
-                    <tr>
-                        <th scope="col"><input type="checkbox" id="select-all-users"></th>
-                        <th scope="col">Mã người dùng</th>
-                        <th scope="col">Tên người dùng</th>
-                        <th scope="col">Ngày lập</th>
-                        <th scope="col">Trạng thái</th>
-                        <th scope="col">Hành động</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($users as $user)
+            <div class="leave-table-scroll">
+                <table class="leave-table user-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <input type="checkbox" name="user_ids[]" value="{{ $user->id }}" form="user-bulk-form"
-                                    @if (! $userActions[$user->id]) disabled @endif
-                                    @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
-                            </td>
-                            <td>{{ str_pad((string) $user->id, \App\Constants\AppConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
-                            <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
-                            <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
-                            <td>{{ $userStatuses[$user->status] }}</td>
-                            <td>
-                                @if ($userActions[$user->id])
-                                    <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
-                                        <input type="hidden" name="user_id" value="{{ $user->id }}">
-                                        <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
-                                        @if ($user->status === \App\Constants\AppConstants::STATUS_ACTIVE)
-                                            <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa"
-                                                @if (! in_array($user->id, $selectedUserIds, true)) disabled @endif>
-                                                <svg class="user-status-icon" viewBox="0 0 24 24">
-                                                    <rect x="4" y="11" width="16" height="10" rx="2"></rect>
-                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                                </svg>
-                                            </button>
-                                        @else
-                                            <button type="submit" name="action" value="open_unlock" class="user-activate" title="Mở khóa">
-                                                <svg class="user-status-icon" viewBox="0 0 24 24">
-                                                    <rect x="4" y="11" width="16" height="10" rx="2"></rect>
-                                                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                                                </svg>
-                                            </button>
-                                        @endif
-                                    </form>
-                                @endif
-                            </td>
+                            <th scope="col"><input type="checkbox" id="select-all-users"></th>
+                            <th scope="col">Mã người dùng</th>
+                            <th scope="col">Tên người dùng</th>
+                            <th scope="col">Ngày lập</th>
+                            <th scope="col">Trạng thái</th>
+                            <th scope="col">Hành động</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="6">{{ __('messages.no_users_found') }}</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse ($users as $user)
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="user_ids[]" value="{{ $user->id }}" form="user-bulk-form"
+                                        @if (! $userActions[$user->id]) disabled @endif
+                                        @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
+                                </td>
+                                <td>{{ str_pad((string) $user->id, \App\Constants\AppConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
+                                <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
+                                <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
+                                <td>{{ $userStatuses[$user->status] }}</td>
+                                <td>
+                                    @if ($userActions[$user->id])
+                                        <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
+                                            <input type="hidden" name="user_id" value="{{ $user->id }}">
+                                            <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
+                                            @if ($user->status === \App\Constants\AppConstants::STATUS_ACTIVE)
+                                                <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa"
+                                                    @if (! in_array($user->id, $selectedUserIds, true)) disabled @endif>
+                                                    <svg class="user-status-icon" viewBox="0 0 24 24">
+                                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                    </svg>
+                                                </button>
+                                            @else
+                                                <button type="submit" name="action" value="open_unlock" class="user-activate" title="Mở khóa">
+                                                    <svg class="user-status-icon" viewBox="0 0 24 24">
+                                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6">{{ __('messages.no_users_found') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         {{ $users->links('pagination') }}
