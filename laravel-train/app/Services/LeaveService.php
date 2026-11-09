@@ -2,26 +2,31 @@
 
 namespace App\Services;
 
-use App\Constants\LeaveConstants;
+use App\Constants\AppConstants;
 use App\Mail\LeaveCreatedMail;
 use App\Mail\LeaveProcessedMail;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use finfo;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Throwable;
 
 class LeaveService
 {
     private string $uploadDirectory;
 
-    public function __construct(private LeaveValidationService $validation, ?string $uploadDirectory = null)
+    public function __construct(?string $uploadDirectory = null)
     {
         $this->uploadDirectory = $uploadDirectory ?? base_path('../../train-php/uploads');
     }
@@ -29,11 +34,11 @@ class LeaveService
     // Lưu đơn mới và file đính kèm trong transaction
     public function save(int $userId, array $values, ?array $attachment, int $leaveId = 0): array
     {
-        $fullPath = null;
-        $leave = null;
+        $fullPath       = null;
+        $leave          = null;
         $attachmentPath = '';
-        $createdMail = null;
-        $approverEmail = '';
+        $createdMail    = null;
+        $approverEmail  = '';
 
         try {
             DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath, &$createdMail, &$approverEmail): void {
@@ -50,21 +55,21 @@ class LeaveService
                     ->get()
                     ->keyBy('id');
                 $currentUser = $users->get($userId);
-                if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
+                if ($currentUser === null || $currentUser->status !== AppConstants::STATUS_ACTIVE) {
                     throw new AuthenticationException;
                 }
                 if ($leave !== null) {
                     Gate::forUser($currentUser)->authorize('update', $leave);
                 }
 
-                $errors = $this->validation->fields(
-                    $values, $currentUser->leaveApprovers(), LeaveConstants::LEAVE_TYPES,
+                $errors = $this->validateFields(
+                    $values, $currentUser->leaveApprovers(), AppConstants::LEAVE_TYPES,
                     $leaveId === 0 ? now()->toDateString() : '',
                 );
                 if (! $attachment || (int) $attachment['user_id'] !== $userId) {
                     $fileError = __('messages.attachment_select_again');
                 } else {
-                    $fileError = $this->validation->attachment($attachment['name'], $attachment['data']);
+                    $fileError = $this->validateAttachment($attachment['name'], $attachment['data']);
                 }
                 if ($fileError !== '') {
                     $errors['attachment'] = $fileError;
@@ -86,11 +91,11 @@ class LeaveService
                     if (! is_dir($this->uploadDirectory)) { // Yêu cầu thư mục upload tồn tại
                         throw new RuntimeException(__('messages.upload_directory_missing'));
                     }
-                    $extension = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
-                    $filename = bin2hex(random_bytes(LeaveConstants::ATTACHMENT_RANDOM_BYTES)).'.'.$extension;
+                    $extension      = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
+                    $filename       = bin2hex(random_bytes(AppConstants::ATTACHMENT_RANDOM_BYTES)).'.'.$extension;
                     $attachmentPath = 'uploads/'.$filename;
-                    $fullPath = $this->uploadDirectory.DIRECTORY_SEPARATOR.$filename;
-                    $writtenBytes = @file_put_contents($fullPath, $attachment['data'], LOCK_EX);
+                    $fullPath       = $this->uploadDirectory.DIRECTORY_SEPARATOR.$filename;
+                    $writtenBytes   = @file_put_contents($fullPath, $attachment['data'], LOCK_EX);
                     if ($writtenBytes !== strlen($attachment['data'])) {
                         throw new RuntimeException(__('messages.attachment_write_failed'));
                     }
@@ -111,10 +116,10 @@ class LeaveService
                 } else {
                     $createdLeaveId = LeaveRequest::query()->insertGetId($changes + [
                         'user_id'    => $userId,
-                        'status'     => LeaveRequest::STATUS_NEW,
+                        'status'     => AppConstants::STATUS_NEW,
                         'created_at' => now()->format('Y-m-d H:i:s'),
                     ]);
-                    $approver = $users->get((int) $values['approver_id']);
+                    $approver      = $users->get((int) $values['approver_id']);
                     $approverEmail = trim((string) $approver?->email);
                     if ($approverEmail !== '') { // Chỉ chuẩn bị mail nếu người duyệt có email
                         $createdMail = new LeaveCreatedMail(
@@ -155,7 +160,7 @@ class LeaveService
         if ($fullPath === null) {
             return null;
         }
-        $data = @file_get_contents($fullPath, false, null, 0, LeaveConstants::ATTACHMENT_MAX_MB * 1024 * 1024 + 1);
+        $data = @file_get_contents($fullPath, false, null, 0, AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024 + 1);
         if ($data === false) {
             return null;
         }
@@ -171,9 +176,9 @@ class LeaveService
     // Kiểm tra đường dẫn thực của file đính kèm
     private function attachmentFullPath(string $path): ?string
     {
-        $uploadDirectory = realpath($this->uploadDirectory);
+        $uploadDirectory  = realpath($this->uploadDirectory);
         $projectDirectory = dirname(rtrim($this->uploadDirectory, '/\\'));
-        $fullPath = realpath($projectDirectory.DIRECTORY_SEPARATOR.$path);
+        $fullPath         = realpath($projectDirectory.DIRECTORY_SEPARATOR.$path);
         if ($uploadDirectory === false || $fullPath === false || ! is_file($fullPath)) {
             return null;
         }
@@ -204,7 +209,7 @@ class LeaveService
     public function process(int $userId, int $leaveId, string $action, string $reason): void
     {
         $processedMail = null;
-        $creatorEmail = '';
+        $creatorEmail  = '';
 
         try {
             DB::transaction(function () use ($userId, $leaveId, $action, $reason, &$processedMail, &$creatorEmail): void {
@@ -222,7 +227,7 @@ class LeaveService
                     ->keyBy('id');
 
                 $currentUser = $users->get($userId);
-                if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
+                if ($currentUser === null || $currentUser->status !== AppConstants::STATUS_ACTIVE) {
                     throw new AuthenticationException;
                 }
 
@@ -234,13 +239,13 @@ class LeaveService
                 $processedAt = now();
                 if ($action === 'approve') {
                     $changes = [
-                        'status'      => LeaveRequest::STATUS_APPROVED,
+                        'status'      => AppConstants::STATUS_APPROVED,
                         'update_at'   => $processedAt->format('Y-m-d H:i:s'),
                         'approved_at' => $processedAt->toDateString(),
                     ];
                 } else {
                     $changes = [
-                        'status'        => LeaveRequest::STATUS_CANCELLED,
+                        'status'        => AppConstants::STATUS_CANCELLED,
                         'delete_at'     => $processedAt->format('Y-m-d H:i:s'),
                         'cancel_reason' => $reason,
                     ];
@@ -248,7 +253,7 @@ class LeaveService
 
                 $updated = LeaveRequest::query()
                     ->whereKey($leaveId)
-                    ->where('status', LeaveRequest::STATUS_NEW)
+                    ->where('status', AppConstants::STATUS_NEW)
                     ->update($changes);
 
                 $creatorEmail = trim((string) $owner->email);
@@ -298,7 +303,7 @@ class LeaveService
     {
         try {
             $connection = DB::connection();
-            $pdo = $connection->getPdo();
+            $pdo        = $connection->getPdo();
             if ($pdo->inTransaction()) {
                 if ($connection->transactionLevel() > 0) {
                     $connection->rollBack();
@@ -309,5 +314,350 @@ class LeaveService
         } catch (Throwable) {
             Log::error(__('messages.leave_rollback_failed'));
         }
+    }
+
+    // Tạo bộ dữ liệu trống cho form
+    public function emptyValues(): array
+    {
+        return [
+            'title'       => '',
+            'content'     => '',
+            'approver_id' => '',
+            'leave_type'  => '',
+            'start_date'  => '',
+            'end_date'    => '',
+        ];
+    }
+
+    // Chuẩn bị bản nháp và dữ liệu ban đầu
+    public function prepareDraft(Request $request, array $defaultValues, Collection $approvers, ?LeaveRequest $leave = null): array
+    {
+        $session = $request->session();
+        $userId  = $request->user()->id;
+        $leaveId = $leave?->id ?? 0; // 0 nếu tạo mới, lớn hơn 0 nếu chỉnh sửa
+
+        if ($request->isMethod('get') && ! $session->get('leave_create_resume')) {
+            $this->clearDraft($session);
+        }
+        $session->forget('leave_create_resume');
+
+        $values = $defaultValues;
+        $errors = [];
+        $draft  = $session->get('leave_create_draft');
+        if ($draft && (int) $draft['user_id'] === $userId
+            && isset($draft['leave_id']) && (int) $draft['leave_id'] === $leaveId
+            && $session->has('leave_create_initial')) {
+            $values = $draft['values'];
+            $errors = $draft['errors'] ?? [];
+        } else {
+            $this->clearDraft($session);
+            if ($leave !== null) {
+                foreach (array_keys($values) as $field) {
+                    $values[$field] = (string) $leave->getRawOriginal($field);
+                }
+                if (! $approvers->contains('id', (int) $values['approver_id'])) {
+                    $values['approver_id'] = $defaultValues['approver_id'];
+                }
+                $savedAttachment = $this->readSavedAttachment($leave, $userId);
+                if ($savedAttachment !== null) {
+                    $session->put('leave_create_attachment', $savedAttachment);
+                }
+            }
+        }
+
+        $attachment = $session->get('leave_create_attachment');
+        if ($attachment && (int) $attachment['user_id'] !== $userId) {
+            $session->forget('leave_create_attachment');
+            $attachment = null;
+        }
+
+        if (! $session->has('leave_create_initial')) {
+            $session->put('leave_create_initial', [
+                'values'     => $values,
+                'attachment' => $this->attachmentFingerprint($attachment),
+            ]);
+            $session->put('leave_create_draft', [
+                'user_id'   => $userId,
+                'leave_id'  => $leaveId,
+                'values'    => $values,
+                'confirmed' => false,
+                'errors'    => [],
+            ]);
+        }
+
+        return [
+            'values'     => $values,
+            'errors'     => $errors,
+            'attachment' => $attachment,
+            'initial'    => $session->get('leave_create_initial'),
+        ];
+    }
+
+    // Đọc dữ liệu từ form, chỉ lấy các trường hợp lệ
+    public function readValues(array $post): array
+    {
+        $values = $this->emptyValues();
+        $errors = [];
+        foreach (array_keys($values) as $field) {
+            if (! isset($post[$field])) {
+                continue;
+            }
+            if (! is_string($post[$field])) {
+                $errors[$field] = __('messages.invalid_form_value');
+
+                continue;
+            }
+            $values[$field] = $post[$field];
+        }
+
+        return ['values' => $values, 'errors' => $errors];
+    }
+
+    // Đọc file upload mới hoặc giữ file trong session
+    public function readAttachment(Request $request, ?array $attachment, bool $keepTemporary = false): array
+    {
+        $result = ['attachment' => $attachment, 'error' => '']; // Không thay đổi file tạm nếu file mới lỗi
+        $files  = $request->files->all();
+        $file   = $files['attachment'] ?? null;
+        if (count($files) > 1 || ($file !== null && ! $file instanceof UploadedFile)) { // Chỉ cho phép 1 file upload
+            $result['error'] = __('messages.attachment_single_only');
+
+            return $result;
+        }
+        if ($file === null) {
+            return $this->checkStoredAttachment($result, $keepTemporary);
+        }
+
+        $maxSize = AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024;
+        $error   = $file->getError();
+        $size    = is_file($file->getPathname()) ? $file->getSize() : 0;
+        if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $size > $maxSize) {
+            $result['error'] = __('messages.attachment_too_large', ['size' => AppConstants::ATTACHMENT_MAX_MB]);
+
+            return $result;
+        }
+        if ($error !== UPLOAD_ERR_OK && $error !== UPLOAD_ERR_NO_FILE) {
+            $result['error'] = __('messages.attachment_upload_failed');
+
+            return $result;
+        }
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return $this->checkStoredAttachment($result, $keepTemporary);
+        }
+        if (! $file->isValid()) {
+            $result['error'] = __('messages.attachment_upload_invalid');
+
+            return $result;
+        }
+
+        $data = @file_get_contents($file->getPathname(), false, null, 0, $maxSize + 1); // Giới hạn đọc file
+        if ($data === false) {
+            $result['error'] = __('messages.attachment_read_failed');
+
+            return $result;
+        }
+        $name = basename(str_replace('\\', '/', $file->getClientOriginalName())); // Chuẩn hóa tên file
+        if (! $keepTemporary) {
+            $result['error'] = $this->validateAttachment($name, $data);
+            if ($result['error'] !== '') {
+                return $result;
+            }
+        }
+        $result['attachment'] = [
+            'user_id'   => $request->user()->id,
+            'name'      => $name,
+            'data'      => $data,
+            'temporary' => $keepTemporary,
+        ];
+
+        return $result;
+    }
+
+    // Kiểm tra file tạm đã giữ trong session
+    private function checkStoredAttachment(array $result, bool $keepTemporary): array
+    {
+        if (! $keepTemporary && $result['attachment'] && ! empty($result['attachment']['temporary'])) {
+            $attachment      = $result['attachment'];
+            $result['error'] = $this->validateAttachment($attachment['name'], $attachment['data']);
+            if ($result['error'] === '') {
+                $result['attachment']['temporary'] = false;
+            }
+        }
+        if (! $keepTemporary && ! $result['attachment']) {
+            $result['error'] = __('messages.attachment_required');
+        }
+
+        return $result;
+    }
+
+    // So sánh dữ liệu với trạng thái ban đầu
+    public function hasChanges(array $values, ?array $attachment, array $initial): bool
+    {
+        foreach ($initial['values'] as $field => $initialValue) {
+            $initialValue = str_replace(["\r\n", "\r"], "\n", $initialValue);
+            $currentValue = str_replace(["\r\n", "\r"], "\n", $values[$field]);
+            if ($currentValue !== $initialValue) {
+                return true;
+            }
+        }
+
+        return $this->attachmentFingerprint($attachment) !== $initial['attachment'];
+    }
+
+    // Tạo dấu nhận diện file bằng tên và hash dữ liệu
+    public function attachmentFingerprint(?array $attachment): ?array
+    {
+        if (! $attachment) {
+            return null;
+        }
+
+        return ['name' => $attachment['name'], 'hash' => hash('sha256', $attachment['data'])];
+    }
+
+    // Xóa dữ liệu nháp khỏi session
+    public function clearDraft(Session $session): void
+    {
+        $session->forget([
+            'leave_create_draft', 'leave_create_attachment', 'leave_create_save_pending',
+            'leave_create_initial', 'leave_create_exit',
+        ]);
+    }
+
+    // Kiểm tra các trường dữ liệu và trả về mảng lỗi
+    public function validateFields(array $values, Collection $approvers, array $leaveTypes, string $minimumDate): array
+    {
+        $messages = [
+            'title'       => $this->title($values['title']),
+            'content'     => $this->content($values['content']),
+            'approver_id' => $this->approver($values['approver_id'], $approvers),
+            'leave_type'  => $this->type($values['leave_type'], $leaveTypes),
+            'start_date'  => $this->date($values['start_date'], 'Ngày bắt đầu', $minimumDate),
+            'end_date'    => $this->date($values['end_date'], 'Ngày kết thúc', $minimumDate),
+        ];
+        $errors = [];
+        foreach ($messages as $field => $message) {
+            if ($message !== '') {
+                $errors[$field] = $message;
+            }
+        }
+        if (! isset($errors['start_date']) && ! isset($errors['end_date'])
+            && $values['start_date'] > $values['end_date']) {
+            $errors['end_date'] = __('messages.end_date_before_start');
+        }
+
+        return $errors;
+    }
+
+    // Kiểm tra tiêu đề hợp lệ và giới hạn ký tự
+    private function title(string $title): string
+    {
+        if (! mb_check_encoding($title, 'UTF-8')) {
+            return __('messages.leave_title_encoding');
+        }
+        if (! preg_match('/[^\s\p{Z}]/u', $title)) {
+            return __('messages.leave_title_required');
+        }
+        if (mb_strlen($title, 'UTF-8') > AppConstants::TITLE_MAX_LENGTH) {
+            return __('messages.leave_title_too_long', ['max' => AppConstants::TITLE_MAX_LENGTH]);
+        }
+
+        return '';
+    }
+
+    // Kiểm tra định dạng và dung lượng nội dung
+    private function content(string $content): string
+    {
+        if (! mb_check_encoding($content, 'UTF-8')) {
+            return __('messages.leave_content_encoding');
+        }
+        if (strlen($content) > AppConstants::CONTENT_MAX_BYTES) {
+            return __('messages.leave_content_too_long');
+        }
+
+        return '';
+    }
+
+    // Kiểm tra người duyệt trong danh sách hiện hành
+    private function approver(string $value, Collection $approvers): string
+    {
+        if ($approvers->isEmpty()) {
+            return __('messages.approver_unavailable');
+        }
+        $approverId = filter_var($value, FILTER_VALIDATE_INT);
+        if ($approverId === false || $approverId < 1) {
+            return __('messages.approver_required');
+        }
+        foreach ($approvers as $approver) {
+            if ((int) $approver->id === $approverId) {
+                return '';
+            }
+        }
+
+        return __('messages.approver_required');
+    }
+
+    // Kiểm tra mã loại đơn
+    private function type(string $value, array $leaveTypes): string
+    {
+        foreach (array_keys($leaveTypes) as $code) {
+            if ($value === (string) $code) {
+                return '';
+            }
+        }
+
+        return __('messages.leave_type_required');
+    }
+
+    // Kiểm tra định dạng, lịch và ngày tối thiểu
+    private function date(string $value, string $label, string $minimumDate): string
+    {
+        if ($value === '') {
+            return __('messages.date_required', ['label' => mb_strtolower($label, 'UTF-8')]);
+        }
+        $parts = explode('-', $value);
+        if (count($parts) !== 3
+            || strlen($parts[0]) !== 4 || strlen($parts[1]) !== 2 || strlen($parts[2]) !== 2
+            || ! ctype_digit($parts[0]) || ! ctype_digit($parts[1]) || ! ctype_digit($parts[2])
+            || ! checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
+            return __('messages.date_invalid', ['label' => $label]);
+        }
+        if ($minimumDate !== '' && $value < $minimumDate) {
+            return __('messages.date_in_past', ['label' => $label]);
+        }
+
+        return '';
+    }
+
+    // Kiểm tra tên, dung lượng và nội dung của file
+    public function validateAttachment(string $name, string $data): string
+    {
+        if ($name === '' || ! mb_check_encoding($name, 'UTF-8')
+            || mb_strlen($name, 'UTF-8') > AppConstants::ATTACHMENT_NAME_MAX_LENGTH
+            || preg_match('/[\x00-\x1F\x7F]/', $name)) {
+            return __('messages.attachment_name_invalid', ['max' => AppConstants::ATTACHMENT_NAME_MAX_LENGTH]); // Tên phải hợp lệ, không có ký tự điều khiển và không quá giới hạn ký tự
+        }
+        if ($data === '') {
+            return __('messages.attachment_empty'); // Từ chối tệp trống
+        }
+        if (strlen($data) > AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024) {
+            return __('messages.attachment_too_large', ['size' => AppConstants::ATTACHMENT_MAX_MB]); // Từ chối tệp quá lớn
+        }
+        $allowedTypes = AppConstants::ATTACHMENT_ALLOWED_TYPES;
+        $extension    = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (! isset($allowedTypes[$extension])) {
+            return __('messages.attachment_type_invalid'); // Từ chối loại tệp không được phép
+        }
+        $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($data);
+        if (! in_array($mime, $allowedTypes[$extension], true)) {
+            return __('messages.attachment_content_invalid'); // Từ chối nội dung tệp không hợp lệ
+        }
+        if ($extension !== 'pdf' && @getimagesizefromstring($data) === false) {
+            return __('messages.attachment_image_invalid'); // Từ chối tệp hình ảnh không hợp lệ
+        }
+        if ($extension === 'pdf' && substr($data, 0, 5) !== '%PDF-') {
+            return __('messages.attachment_pdf_invalid'); // Từ chối tệp PDF không hợp lệ
+        }
+
+        return '';
     }
 }

@@ -61,7 +61,7 @@
                                     @if (! $userActions[$user->id]) disabled @endif
                                     @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
                             </td>
-                            <td>{{ str_pad((string) $user->id, \App\Constants\UserConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
+                            <td>{{ str_pad((string) $user->id, \App\Constants\AppConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
                             <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
                             <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
                             <td>{{ $userStatuses[$user->status] }}</td>
@@ -70,7 +70,7 @@
                                     <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
                                         <input type="hidden" name="user_id" value="{{ $user->id }}">
                                         <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
-                                        @if ($user->status === \App\Models\User::STATUS_ACTIVE)
+                                        @if ($user->status === \App\Constants\AppConstants::STATUS_ACTIVE)
                                             <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa"
                                                 @if (! in_array($user->id, $selectedUserIds, true)) disabled @endif>
                                                 <svg class="user-status-icon" viewBox="0 0 24 24">

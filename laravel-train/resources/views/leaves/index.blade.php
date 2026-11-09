@@ -45,7 +45,7 @@
                     @forelse ($leaves as $leave)
                         @php
                             $canProcess = auth()->user()->can('process', $leave);
-                            $canEdit = auth()->user()->can('update', $leave);
+                            $canEdit    = auth()->user()->can('update', $leave);
                         @endphp
                         <tr class="leave-row leave-status-{{ $leave->status }}">
                             <td>{{ $leaves->firstItem() + $loop->index }}</td>

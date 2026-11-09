@@ -15,5 +15,6 @@ class AppServiceProvider extends ServiceProvider
     }
 
     // Khởi tạo thành phần ứng dụng
-    public function boot(): void {}
+    public function boot(): void {
+    }
 }

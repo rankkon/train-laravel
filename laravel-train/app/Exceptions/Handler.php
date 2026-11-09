@@ -48,10 +48,10 @@ class Handler extends ExceptionHandler
         }
 
         $this->resetDraftConfirmation($request);
-        $status = 500;
+        $status  = 500;
         $headers = [];
         if ($exception instanceof HttpExceptionInterface) {
-            $status = $exception->getStatusCode();
+            $status  = $exception->getStatusCode();
             $headers = $exception->getHeaders();
         }
 
@@ -86,8 +86,8 @@ class Handler extends ExceptionHandler
     // Tạo thông tin lỗi để ghi log
     protected function buildExceptionContext(Throwable $exception): array
     {
-        $context = $this->context();
-        $httpException = $this->prepareException($exception);
+        $context           = $this->context();
+        $httpException     = $this->prepareException($exception);
         $context['status'] = 500;
         if ($exception instanceof HttpResponseException) {
             $context['status'] = $exception->getResponse()->getStatusCode();
@@ -95,15 +95,14 @@ class Handler extends ExceptionHandler
             $context['status'] = $httpException->getStatusCode();
         }
         $context['exception_type'] = $exception::class;
-        $context['file'] = $exception->getFile();
-        $context['line'] = $exception->getLine();
-
-        $cause = $exception;
+        $context['file']           = $exception->getFile();
+        $context['line']           = $exception->getLine();
+        $cause                     = $exception;
         while ($cause->getPrevious() !== null) {
             $cause = $cause->getPrevious();
         }
         if ($cause !== $exception) {
-            $context['cause_type'] = $cause::class;
+            $context['cause_type']    = $cause::class;
             $context['cause_message'] = $cause->getMessage();
         }
 
@@ -119,7 +118,7 @@ class Handler extends ExceptionHandler
 
         $request = $this->container->make('request');
         $context = ['method' => $request->method(), 'path' => $request->path()];
-        $guard = $this->container->make('auth')->guard();
+        $guard   = $this->container->make('auth')->guard();
         if ($guard instanceof SessionGuard) {
             if ($guard->hasUser()) {
                 $context['user_id'] = $guard->user()->getAuthIdentifier();

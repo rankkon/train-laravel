@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Constants\LeaveConstants;
+use App\Constants\AppConstants;
 use App\Models\LeaveRequest;
-use App\Services\LeaveDraftService;
 use App\Services\LeaveService;
-use App\Services\LeaveValidationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,13 +15,13 @@ use Illuminate\Support\Facades\Gate;
 class LeaveController extends Controller
 {
     // Hiển thị và xử lý các bước nhập, xác nhận, hủy và lưu đơn
-    public function create(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService): Response|RedirectResponse
+    public function create(Request $request, LeaveService $leaveService): Response|RedirectResponse
     {
-        return $this->form($request, $draftService, $validation, $leaveService);
+        return $this->form($request, $leaveService);
     }
 
     // Nạp dữ liệu nháp và hiển thị form chỉnh sửa đơn
-    public function edit(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService, string $leave): Response|RedirectResponse
+    public function edit(Request $request, LeaveService $leaveService, string $leave): Response|RedirectResponse
     {
         $leaveId = filter_var($leave, FILTER_VALIDATE_INT);
         abort_if($leaveId === false || $leaveId < 1, 400);
@@ -31,43 +29,42 @@ class LeaveController extends Controller
         $editedLeave = LeaveRequest::query()->findOrFail($leaveId);
         Gate::authorize('update', $editedLeave);
 
-        return $this->form($request, $draftService, $validation, $leaveService, $editedLeave);
+        return $this->form($request, $leaveService, $editedLeave);
     }
 
     // Xử lý form nhập, xác nhận, hủy và lưu đơn
-    private function form(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService, ?LeaveRequest $leave = null): Response|RedirectResponse
+    private function form(Request $request, LeaveService $leaveService, ?LeaveRequest $leave = null): Response|RedirectResponse
     {
-        $leaveId = $leave?->id ?? 0;
-        $formTitle = $leave === null ? 'Thêm mới đơn' : 'Sửa đơn';
-        $formAction = $leave === null ? route('leaves.create.submit') : route('leaves.edit.submit', ['leave' => $leaveId]);
-        $minimumDate = $leave === null ? now()->toDateString() : ''; // Sửa đơn có thể chọn ngày trong quá khứ
-        $user = $request->user(); // Lấy thông tin người dùng hiện tại
-        $approvers = $user->leaveApprovers(); // Lấy danh sách người duyệt đơn của người dùng
-        $leaveTypes = LeaveConstants::LEAVE_TYPES; // Lấy danh sách loại đơn
-        $defaultValues = $draftService->emptyValues(); // Khởi tạo giá trị mặc định cho form
+        $leaveId                      = $leave?->id ?? 0;
+        $formTitle                    = $leave === null ? 'Thêm mới đơn' : 'Sửa đơn';
+        $formAction                   = $leave === null ? route('leaves.create.submit') : route('leaves.edit.submit', ['leave' => $leaveId]);
+        $minimumDate                  = $leave === null ? now()->toDateString() : ''; // Sửa đơn có thể chọn ngày trong quá khứ
+        $user                         = $request->user(); // Lấy thông tin người dùng hiện tại
+        $approvers                    = $user->leaveApprovers(); // Lấy danh sách người duyệt đơn của người dùng
+        $leaveTypes                   = AppConstants::LEAVE_TYPES; // Lấy danh sách loại đơn
+        $defaultValues                = $leaveService->emptyValues(); // Khởi tạo giá trị mặc định cho form
         $defaultValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id;
-        $defaultValues['leave_type'] = (string) array_key_first($leaveTypes);
-        $defaultValues['start_date'] = $minimumDate; // Lấy ngày hiện tại làm ngày mặc định
-        $defaultValues['end_date'] = $defaultValues['start_date']; // Ngày kết thúc mặc định bằng ngày bắt đầu
-
-        $state = $draftService->prepare($request, $defaultValues, $approvers, $leave); // Trạng thái của form được chuẩn bị từ session hoặc mặc định
-        $values = $state['values']; // Giá trị hiện tại của form (nháp hoặc mặc định)
-        $errors = $state['errors']; // Lỗi xác thực hiện tại
-        $attachment = $state['attachment']; // Tệp đính kèm hiện tại
-        $session = $request->session();
-        $isConfirmation = false; // Cờ xác nhận (true nếu người dùng đã xác nhận form)
-        $showSavePopup = false; //Điều khiển hiển thị popup xác nhận lưu đơn
-        $showExitPopup = false; //Điều khiển hiển thị popup xác nhận thoát form
-        $exitDestination = '';
-        $exitMessage = __('messages.confirm_exit');
-        $status = 200;
-        $exitActions = [
+        $defaultValues['leave_type']  = (string) array_key_first($leaveTypes);
+        $defaultValues['start_date']  = $minimumDate; // Lấy ngày hiện tại làm ngày mặc định
+        $defaultValues['end_date']    = $defaultValues['start_date']; // Ngày kết thúc mặc định bằng ngày bắt đầu
+        $state                        = $leaveService->prepareDraft($request, $defaultValues, $approvers, $leave); // Trạng thái của form được chuẩn bị từ session hoặc mặc định
+        $values                       = $state['values']; // Giá trị hiện tại của form (nháp hoặc mặc định)
+        $errors                       = $state['errors']; // Lỗi xác thực hiện tại
+        $attachment                   = $state['attachment']; // Tệp đính kèm hiện tại
+        $session                      = $request->session();
+        $isConfirmation               = false; // Cờ xác nhận (true nếu người dùng đã xác nhận form)
+        $showSavePopup                = false; //Điều khiển hiển thị popup xác nhận lưu đơn
+        $showExitPopup                = false; //Điều khiển hiển thị popup xác nhận thoát form
+        $exitDestination              = '';
+        $exitMessage                  = __('messages.confirm_exit');
+        $status                       = 200;
+        $exitActions                  = [
             'exit_dashboard' => 'dashboard', 'exit_users' => 'users',
-            'exit_list' => 'leaves', 'exit_logout' => 'logout',
+            'exit_list'      => 'leaves', 'exit_logout' => 'logout',
         ]; // Ánh xạ các hành động thoát form sang các điểm đến tương ứng
         $exitUrls = [
             'dashboard' => route('dashboard'), 'users' => route('users.index'),
-            'leaves' => route('leaves.index'), 'logout' => route('logout'),
+            'leaves'    => route('leaves.index'), 'logout' => route('logout'),
         ]; // Ánh xạ các điểm đến thoát form sang URL tương ứng
 
         if ($request->isMethod('post')) {
@@ -78,24 +75,23 @@ class LeaveController extends Controller
 
             if ($request->request->count() === 0 && $request->files->count() === 0
                 && (int) $request->server('CONTENT_LENGTH', 0) > 0) {
-                $status = 400;
-                $errors['form'] = __('messages.post_data_unreadable', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
+                $status         = 400;
+                $errors['form'] = __('messages.post_data_unreadable', ['size' => AppConstants::ATTACHMENT_MAX_MB]);
             } elseif (isset($exitActions[$action])) { // Kiểm tra thay đổi trước khi thoát form
-                $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
+                $isConfirmation  = (bool) $session->get('leave_create_draft.confirmed');
                 $exitDestination = $exitActions[$action];
                 $session->forget(['leave_create_save_pending', 'leave_create_exit']);
-                $uploadError = '';
+                $uploadError      = '';
                 $hasInvalidValues = false;
 
                 if (! $isConfirmation) { // Đọc lại trường nhập khi chưa xác nhận
-                    $form = $draftService->readValues($request->post());
-                    $values = $form['values'];
+                    $form             = $leaveService->readValues($request->post());
+                    $values           = $form['values'];
                     $hasInvalidValues = $form['errors'] !== [];
-                    $errors = array_replace($errors, $form['errors']);
-
-                    $upload = $draftService->readAttachment($request, $attachment, true); // Giữ file tạm cho đến khi xác nhận rời trang
-                    $attachment = $upload['attachment'];
-                    $uploadError = $upload['error'];
+                    $errors           = array_replace($errors, $form['errors']);
+                    $upload           = $leaveService->readAttachment($request, $attachment, true); // Giữ file tạm cho đến khi xác nhận rời trang
+                    $attachment       = $upload['attachment'];
+                    $uploadError      = $upload['error'];
                     if ($attachment) {
                         $session->put('leave_create_attachment', $attachment);
                     } else {
@@ -105,12 +101,12 @@ class LeaveController extends Controller
                         $errors['attachment'] = $uploadError;
                     }
                     $session->put('leave_create_draft', [ // Giữ dữ liệu nháp đến khi xác nhận rời trang
-                        'user_id' => $user->id, 'leave_id' => $leaveId, 'values' => $values,
+                        'user_id'   => $user->id, 'leave_id' => $leaveId, 'values' => $values,
                         'confirmed' => false, 'errors' => $errors,
                     ]);
                 }
 
-                if ($draftService->hasChanges($values, $attachment, $state['initial']) // So sánh dữ liệu nháp với dữ liệu ban đầu để hiện quyết định popup hay không
+                if ($leaveService->hasChanges($values, $attachment, $state['initial']) // So sánh dữ liệu nháp với dữ liệu ban đầu để hiện quyết định popup hay không
                     || $uploadError !== '' || $hasInvalidValues) {
                     $session->put('leave_create_exit', $exitDestination);
                     $showExitPopup = true;
@@ -120,9 +116,9 @@ class LeaveController extends Controller
                 } elseif ($exitDestination === 'logout') {
                     $session->put('leave_create_exit', $exitDestination);
                     $showExitPopup = true;
-                    $exitMessage = __('messages.confirm_logout'); // Thông báo xác nhận đăng xuất khi không có thay đổi chưa lưu
+                    $exitMessage   = __('messages.confirm_logout'); // Thông báo xác nhận đăng xuất khi không có thay đổi chưa lưu
                 } else {
-                    $draftService->clear($session);
+                    $leaveService->clearDraft($session);
 
                     return redirect($exitUrls[$exitDestination], 303);
                 }
@@ -133,44 +129,43 @@ class LeaveController extends Controller
                 $exitDestination = $session->get('leave_create_exit');
                 $session->forget('leave_create_exit');
                 if ($action === 'confirm_exit') {
-                    $draftService->clear($session);
+                    $leaveService->clearDraft($session);
 
                     return redirect($exitUrls[$exitDestination], 303);
                 }
             } else {
                 $session->forget('leave_create_exit');
                 if ($action === 'clear') { // xóa dữ liệu nháp và khởi tạo lại form
-                    $draftService->clear($session);
+                    $leaveService->clearDraft($session);
                     $session->put('leave_create_initial', $state['initial']);
                     $session->put('leave_create_draft', [
                         'user_id' => $user->id, 'leave_id' => $leaveId,
-                        'values' => $defaultValues, 'confirmed' => false,
+                        'values'  => $defaultValues, 'confirmed' => false,
                     ]);
 
                     if ($leave === null) {
                         return redirect()->route('leaves.create', status: 303);
                     }
-                    $values = $defaultValues;
+                    $values     = $defaultValues;
                     $attachment = null;
-                    $errors = [];
+                    $errors     = [];
                 } elseif ($action === 'back') { // Quay lại form nhập và giữ dữ liệu nháp
                     $session->forget('leave_create_save_pending');
                     $session->put('leave_create_draft.confirmed', false);
                 } elseif ($action === 'validate') { // Xác thực dữ liệu nháp và lưu trạng thái xác nhận
                     $session->forget('leave_create_save_pending');
-                    $form = $draftService->readValues($request->post());
-                    $values = $form['values'];
+                    $form            = $leaveService->readValues($request->post());
+                    $values          = $form['values'];
                     $values['title'] = trim($values['title']);
-                    $errors = $form['errors'];
-
-                    $fieldErrors = $validation->fields($values, $approvers, $leaveTypes, $minimumDate); // Xác thực dữ liệu nháp và trả về lỗi nếu có
+                    $errors          = $form['errors'];
+                    $fieldErrors     = $leaveService->validateFields($values, $approvers, $leaveTypes, $minimumDate); // Xác thực dữ liệu nháp và trả về lỗi nếu có
                     foreach ($fieldErrors as $field => $message) {
                         if (! isset($errors[$field])) {
                             $errors[$field] = $message;
                         }
                     }
 
-                    $upload = $draftService->readAttachment($request, $attachment);
+                    $upload     = $leaveService->readAttachment($request, $attachment);
                     $attachment = $upload['attachment'];
                     if ($attachment) {
                         $session->put('leave_create_attachment', $attachment);
@@ -182,7 +177,7 @@ class LeaveController extends Controller
                     }
                     $isConfirmation = $errors === []; // Chỉ chuyển sang trạng thái xác nhận nếu không có lỗi
                     $session->put('leave_create_draft', [
-                        'user_id' => $user->id, 'leave_id' => $leaveId, 'values' => $values,
+                        'user_id'   => $user->id, 'leave_id' => $leaveId, 'values' => $values,
                         'confirmed' => $isConfirmation, 'errors' => $errors,
                     ]);
                 } elseif (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Xử lý lưu dữ liệu nháp và xác nhận lưu
@@ -210,7 +205,7 @@ class LeaveController extends Controller
                             $session->forget('leave_create_save_pending');
                             $session->put('leave_create_draft.confirmed', false);
                         } else {
-                            $draftService->clear($session);
+                            $leaveService->clearDraft($session);
 
                             return redirect()->route('leaves.index', status: 303);
                         }
@@ -258,14 +253,14 @@ class LeaveController extends Controller
         ], true), 400);
 
         $filters = $this->listFilters($request); // Giữ từ khóa tìm kiếm và số trang
-        $search = $filters['search'];
-        $page = $filters['page'];
+        $search  = $filters['search'];
+        $page    = $filters['page'];
 
         if ($action === 'close_popup') {
             return redirect()->route('leaves.index', ['q' => $search, 'page' => $page], 303);
         }
 
-        $rawId = $request->post('leave_id');
+        $rawId   = $request->post('leave_id');
         $leaveId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false; // Kiểm tra ID đơn hợp lệ
         abort_if($leaveId === false || $leaveId < 1, 400);
 
@@ -292,7 +287,7 @@ class LeaveController extends Controller
                 );
             }
 
-            $reason = trim($rawReason ?? '');
+            $reason      = trim($rawReason ?? '');
             $reasonError = $this->cancelReasonError($reason);
 
             if ($reasonError !== '') {
@@ -321,25 +316,23 @@ class LeaveController extends Controller
     private function renderList(
         Request $request,
         string $processPopup = '',
-        int $processLeaveId = 0,
+        int $processLeaveId  = 0,
         string $cancelReason = '',
         array $processErrors = [],
-        int $status = 200,
+        int $status          = 200,
     ): Response {
-        $filters = $this->listFilters($request);
-        $search = $filters['search'];
+        $filters       = $this->listFilters($request);
+        $search        = $filters['search'];
         $requestedPage = $filters['page'];
-
-        $query = LeaveRequest::query()
+        $query         = LeaveRequest::query()
             ->visibleTo($request->user())
             ->matching($search);
 
-        $total = (clone $query)->count();
-        $perPage = LeaveConstants::LEAVES_PER_PAGE;
+        $total    = (clone $query)->count();
+        $perPage  = AppConstants::LEAVES_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
-        $page = min($requestedPage, $lastPage);
-
-        $leaves = $query->with('user:id,user_type,department')
+        $page     = min($requestedPage, $lastPage);
+        $leaves   = $query->with('user:id,user_type,department')
             ->orderBy('leave.status')
             ->orderByDesc('leave.created_at')
             ->orderByDesc('leave.id')
@@ -354,8 +347,8 @@ class LeaveController extends Controller
             'leaves'         => $leaves,
             'search'         => $search,
             'actionUrl'      => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
-            'leaveTypes'     => LeaveConstants::LEAVE_TYPES,
-            'leaveStatuses'  => LeaveConstants::LEAVE_STATUSES,
+            'leaveTypes'     => AppConstants::LEAVE_TYPES,
+            'leaveStatuses'  => AppConstants::LEAVE_STATUSES,
             'processPopup'   => $processPopup,
             'processLeaveId' => $processLeaveId,
             'cancelReason'   => $cancelReason,
@@ -367,8 +360,8 @@ class LeaveController extends Controller
     private function listFilters(Request $request): array
     {
         $rawSearch = $request->query('q');
-        $search = is_string($rawSearch) ? trim($rawSearch) : '';
-        $page = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
+        $search    = is_string($rawSearch) ? trim($rawSearch) : '';
+        $page      = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
         if ($page === false || $page < 1) {
             $page = 1;
         }
@@ -387,7 +380,7 @@ class LeaveController extends Controller
             return __('messages.cancel_reason_required');
         }
 
-        if (strlen($reason) > LeaveConstants::CANCEL_REASON_MAX_BYTES) {
+        if (strlen($reason) > AppConstants::CANCEL_REASON_MAX_BYTES) {
             return __('messages.cancel_reason_too_long');
         }
 

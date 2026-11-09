@@ -2,7 +2,7 @@
 
 namespace App\Mail;
 
-use App\Constants\LeaveConstants;
+use App\Constants\AppConstants;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -14,11 +14,9 @@ class LeaveCreatedMail extends Mailable implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3; // mail gửi tối đa 3 lần
-
+    public int $tries     = 3; // mail gửi tối đa 3 lần
     public array $backoff = [60, 60]; // Chờ 60s trước mỗi lần thử
-
-    public int $timeout = 60; // Timeout xử lý gửi mail
+    public int $timeout   = 60; // Timeout xử lý gửi mail
 
     // Nhập dữ liệu đơn, tên người tạo và người duyệt để dựng nội dung mail
     public function __construct(
@@ -41,7 +39,7 @@ class LeaveCreatedMail extends Mailable implements ShouldQueue
     {
         return new Content(
             view: 'leave-created-mail',
-            with: ['leaveType' => LeaveConstants::LEAVE_TYPES[(int) $this->values['leave_type']]],
+            with: ['leaveType' => AppConstants::LEAVE_TYPES[(int) $this->values['leave_type']]],
         );
     }
 }
