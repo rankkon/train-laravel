@@ -315,3 +315,12 @@
         padding-left: 19.2px;
     }
 }
+
+.form-popup,
+[data-form-error][hidden] {
+    display: none;
+}
+
+.form-popup-toggle:checked + .form-popup {
+    display: flex;
+}

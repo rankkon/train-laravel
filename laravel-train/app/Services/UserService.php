@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Constants\AppConstants;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Contracts\Session\Session;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -83,7 +81,7 @@ class UserService
                         User::query()->whereKey($editedUserId)->update(['password_hash' => md5($values['password'])]);
                     }
                 } else {
-                    $newUser                = new User;
+                    $newUser = new User;
                     $newUser->username      = $values['username'];
                     $newUser->full_name     = $values['full_name'];
                     $newUser->password_hash = md5($values['password']);
@@ -157,49 +155,27 @@ class UserService
         }
     }
 
-    // Chuẩn bị bản nháp thêm hoặc sửa người dùng
-    public function prepareDraft(Request $request, array $defaultValues, ?User $editedUser = null): array
+    public function readValues(array $post, ?User $editedUser = null): array
     {
-        $session = $request->session();
-        if ($request->isMethod('get') && ! $session->get('user_create_resume')) { // Mở form mới sẽ xóa nháp
-            $this->clearDraft($session);
-        }
-        $session->forget('user_create_resume');
-
-        $editedUserId = $editedUser?->id ?? 0;
-        $draft        = $session->get('user_create_draft');
-        if (! is_array($draft) || ($draft['user_id'] ?? null) !== $request->user()->id // Chỉ dùng nháp thuộc tài khoản hiện tại
-            || ($draft['edited_user_id'] ?? null) !== $editedUserId) {
-            $this->clearDraft($session);
-            $initialValues = $defaultValues;
-            if ($editedUser !== null) {
-                foreach (array_keys($initialValues) as $field) { // Nạp các trường dữ liệu trừ mật khẩu
-                    if ($field !== 'password') {
-                        $initialValues[$field] = (string) $editedUser->getRawOriginal($field);
-                    }
+        $values = [
+            'username'   => '', 'full_name' => '', 'password' => '', 'email' => '',
+            'birth_date' => '', 'user_type' => '', 'department' => '',
+        ];
+        $errors = [];
+        foreach (array_keys($values) as $field) {
+            if (($editedUser !== null && $field === 'username')
+                || ($editedUser?->user_type === AppConstants::TYPE_ADMIN && $field === 'user_type')) {
+                $values[$field] = (string) $editedUser->getRawOriginal($field);
+            } elseif (isset($post[$field])) {
+                if (is_string($post[$field])) {
+                    $values[$field] = $post[$field];
+                } else {
+                    $errors[$field] = __('messages.invalid_form_value');
                 }
             }
-            // Giữ dữ liệu ban đầu để phát hiện thay đổi
-            $draft = [
-                'user_id'        => $request->user()->id,
-                'edited_user_id' => $editedUserId,
-                'initial_values' => $initialValues,
-                'values'         => $initialValues,
-                'confirmed'      => false,
-                'errors'         => [],
-            ];
-            $session->put('user_create_draft', $draft);
         }
 
-        return $draft;
-    }
-
-    // Xóa bản nháp và các cờ xác nhận của form
-    public function clearDraft(Session $session): void
-    {
-        $session->forget([
-            'user_create_draft', 'user_create_exit', 'user_create_save_pending', 'user_create_resume',
-        ]);
+        return ['values' => $values, 'errors' => $errors];
     }
 
     // Kiểm tra các trường người dùng, quyền chọn danh mục và dữ liệu trùng
@@ -255,13 +231,13 @@ class UserService
     // Kiểm tra tên đăng nhập
     private function username(string $value): string
     {
-        if ($value === '') {
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            return __('messages.invalid_form_value');
+        }
+        if (mb_trim($value) === '') {
             return __('messages.username_required');
         }
-        if (! preg_match('/\A[A-Za-z0-9]+\z/', $value)) {
-            return __('messages.username_format');
-        }
-        if (strlen($value) > AppConstants::USERNAME_MAX_LENGTH) {
+        if (mb_strlen($value, 'UTF-8') > AppConstants::USERNAME_MAX_LENGTH) {
             return __('messages.username_too_long', ['max' => AppConstants::USERNAME_MAX_LENGTH]);
         }
 
@@ -271,11 +247,11 @@ class UserService
     // Kiểm tra tên người dùng
     private function fullName(string $value): string
     {
-        if (trim($value, ' ') === '') {
-            return __('messages.user_full_name_required');
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            return __('messages.invalid_form_value');
         }
-        if (! preg_match('/\A(?:\p{L}\p{M}*| )+\z/u', $value)) {
-            return __('messages.user_full_name_format');
+        if (mb_trim($value) === '') {
+            return __('messages.user_full_name_required');
         }
         if (mb_strlen($value, 'UTF-8') > AppConstants::USER_FULL_NAME_MAX_LENGTH) {
             return __('messages.user_full_name_too_long', ['max' => AppConstants::USER_FULL_NAME_MAX_LENGTH]);

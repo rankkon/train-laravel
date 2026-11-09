@@ -15,7 +15,9 @@ class AppConstants
     public const USER_EMAIL_MAX_LENGTH     = 254; // Giới hạn độ dài email
     public const USERS_PER_PAGE            = 15; // Số lượng người dùng hiển thị trên mỗi trang
     public const USER_CODE_LENGTH          = 4; // Độ dài của mã người dùng
-    public const USER_STATUSES             = [ // Các trạng thái của người dùng
+
+    // Các trạng thái của người dùng
+    public const USER_STATUSES = [
         self::STATUS_LOCKED => 'Đã khóa',
         self::STATUS_ACTIVE => 'Đang hoạt động',
     ];
@@ -49,6 +51,8 @@ class AppConstants
     public const ATTACHMENT_ACCEPT          = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf'; // Các loại tệp đính kèm được chấp nhận
     public const ATTACHMENT_MAX_MB          = 10; // Kích thước tối đa của tệp đính kèm (MB)
     public const ATTACHMENT_RANDOM_BYTES    = 16; // Số byte ngẫu nhiên để tạo tên tệp đính kèm
+    public const ATTACHMENT_TEMP_DIRECTORY  = 'temp/leaves';
+    public const ATTACHMENT_TEMP_TTL        = 86400;
     public const TITLE_MAX_LENGTH           = 255; // Độ dài tối đa của tiêu đề đơn
     public const CONTENT_MAX_BYTES          = 65535; // Số byte tối đa của nội dung đơn
     public const ATTACHMENT_NAME_MAX_LENGTH = 255; // Độ dài tối đa của tên tệp đính kèm

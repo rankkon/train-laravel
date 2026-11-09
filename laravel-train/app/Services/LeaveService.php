@@ -9,7 +9,6 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use finfo;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Collection;
@@ -17,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -70,6 +70,12 @@ class LeaveService
                     $fileError = __('messages.attachment_select_again');
                 } else {
                     $fileError = $this->validateAttachment($attachment['name'], $attachment['data']);
+                }
+                if ($fileError === '' && isset($attachment['token'])) {
+                    $temporary = $this->readTemporaryAttachment($userId, $leaveId, $attachment['token']);
+                    if ($temporary === null || $temporary['name'] !== $attachment['name'] || $temporary['data'] !== $attachment['data']) {
+                        $fileError = __('messages.attachment_select_again');
+                    }
                 }
                 if ($fileError !== '') {
                     $errors['attachment'] = $fileError;
@@ -143,6 +149,10 @@ class LeaveService
 
         if ($leave !== null && $leave->attachment_path !== $attachmentPath) {
             $this->removeOldAttachment($leave->attachment_path);
+        }
+
+        if (isset($attachment['token'])) {
+            DB::afterCommit(fn () => $this->deleteTemporaryAttachment($userId, $leaveId, $attachment['token']));
         }
 
         // Đưa thông báo người duyệt vào queue
@@ -329,70 +339,6 @@ class LeaveService
         ];
     }
 
-    // Chuẩn bị bản nháp và dữ liệu ban đầu
-    public function prepareDraft(Request $request, array $defaultValues, Collection $approvers, ?LeaveRequest $leave = null): array
-    {
-        $session = $request->session();
-        $userId  = $request->user()->id;
-        $leaveId = $leave?->id ?? 0; // 0 nếu tạo mới, lớn hơn 0 nếu chỉnh sửa
-
-        if ($request->isMethod('get') && ! $session->get('leave_create_resume')) {
-            $this->clearDraft($session);
-        }
-        $session->forget('leave_create_resume');
-
-        $values = $defaultValues;
-        $errors = [];
-        $draft  = $session->get('leave_create_draft');
-        if ($draft && (int) $draft['user_id'] === $userId
-            && isset($draft['leave_id']) && (int) $draft['leave_id'] === $leaveId
-            && $session->has('leave_create_initial')) {
-            $values = $draft['values'];
-            $errors = $draft['errors'] ?? [];
-        } else {
-            $this->clearDraft($session);
-            if ($leave !== null) {
-                foreach (array_keys($values) as $field) {
-                    $values[$field] = (string) $leave->getRawOriginal($field);
-                }
-                if (! $approvers->contains('id', (int) $values['approver_id'])) {
-                    $values['approver_id'] = $defaultValues['approver_id'];
-                }
-                $savedAttachment = $this->readSavedAttachment($leave, $userId);
-                if ($savedAttachment !== null) {
-                    $session->put('leave_create_attachment', $savedAttachment);
-                }
-            }
-        }
-
-        $attachment = $session->get('leave_create_attachment');
-        if ($attachment && (int) $attachment['user_id'] !== $userId) {
-            $session->forget('leave_create_attachment');
-            $attachment = null;
-        }
-
-        if (! $session->has('leave_create_initial')) {
-            $session->put('leave_create_initial', [
-                'values'     => $values,
-                'attachment' => $this->attachmentFingerprint($attachment),
-            ]);
-            $session->put('leave_create_draft', [
-                'user_id'   => $userId,
-                'leave_id'  => $leaveId,
-                'values'    => $values,
-                'confirmed' => false,
-                'errors'    => [],
-            ]);
-        }
-
-        return [
-            'values'     => $values,
-            'errors'     => $errors,
-            'attachment' => $attachment,
-            'initial'    => $session->get('leave_create_initial'),
-        ];
-    }
-
     // Đọc dữ liệu từ form, chỉ lấy các trường hợp lệ
     public function readValues(array $post): array
     {
@@ -413,10 +359,18 @@ class LeaveService
         return ['values' => $values, 'errors' => $errors];
     }
 
-    // Đọc file upload mới hoặc giữ file trong session
-    public function readAttachment(Request $request, ?array $attachment, bool $keepTemporary = false): array
+    public function readAttachment(Request $request, ?LeaveRequest $leave = null): array
     {
-        $result = ['attachment' => $attachment, 'error' => '']; // Không thay đổi file tạm nếu file mới lỗi
+        $userId   = $request->user()->id;
+        $leaveId  = $leave?->id ?? 0;
+        $rawToken = $request->post('attachment_token', '');
+        $previous = null;
+        if ($rawToken !== '') {
+            $previous = $this->readTemporaryAttachment($userId, $leaveId, $rawToken);
+        } elseif ($leave !== null) {
+            $previous = $this->readSavedAttachment($leave, $userId);
+        }
+        $result = ['attachment' => $previous, 'error' => ''];
         $files  = $request->files->all();
         $file   = $files['attachment'] ?? null;
         if (count($files) > 1 || ($file !== null && ! $file instanceof UploadedFile)) { // Chỉ cho phép 1 file upload
@@ -424,10 +378,16 @@ class LeaveService
 
             return $result;
         }
-        if ($file === null) {
-            return $this->checkStoredAttachment($result, $keepTemporary);
-        }
+        if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            if ($result['attachment'] === null) {
+                $result['error'] = $rawToken === '' ? __('messages.attachment_required') : __('messages.attachment_select_again');
+            } else {
+                $attachment      = $result['attachment'];
+                $result['error'] = $this->validateAttachment($attachment['name'], $attachment['data']);
+            }
 
+            return $result;
+        }
         $maxSize = AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024;
         $error   = $file->getError();
         $size    = is_file($file->getPathname()) ? $file->getSize() : 0;
@@ -436,91 +396,118 @@ class LeaveService
 
             return $result;
         }
-        if ($error !== UPLOAD_ERR_OK && $error !== UPLOAD_ERR_NO_FILE) {
+        if ($error !== UPLOAD_ERR_OK || ! $file->isValid()) {
             $result['error'] = __('messages.attachment_upload_failed');
 
             return $result;
         }
-        if ($error === UPLOAD_ERR_NO_FILE) {
-            return $this->checkStoredAttachment($result, $keepTemporary);
-        }
-        if (! $file->isValid()) {
-            $result['error'] = __('messages.attachment_upload_invalid');
-
-            return $result;
-        }
-
         $data = @file_get_contents($file->getPathname(), false, null, 0, $maxSize + 1); // Giới hạn đọc file
         if ($data === false) {
             $result['error'] = __('messages.attachment_read_failed');
 
             return $result;
         }
-        $name = basename(str_replace('\\', '/', $file->getClientOriginalName())); // Chuẩn hóa tên file
-        if (! $keepTemporary) {
-            $result['error'] = $this->validateAttachment($name, $data);
-            if ($result['error'] !== '') {
-                return $result;
+        $name            = basename(str_replace('\\', '/', $file->getClientOriginalName())); // Chuẩn hóa tên file
+        $result['error'] = $this->validateAttachment($name, $data);
+        if ($result['error'] === '') {
+            $token     = bin2hex(random_bytes(AppConstants::ATTACHMENT_RANDOM_BYTES));
+            $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token;
+            $path      = $directory.'/attachment';
+            $disk      = Storage::disk('local');
+            if (! $disk->put($path, $data) || ! $disk->put($directory.'/name', $name) || ! @touch($disk->path($path), now()->timestamp)) {
+                $disk->deleteDirectory($directory);
+                throw new RuntimeException(__('messages.attachment_write_failed'));
             }
-        }
-        $result['attachment'] = [
-            'user_id'   => $request->user()->id,
-            'name'      => $name,
-            'data'      => $data,
-            'temporary' => $keepTemporary,
-        ];
-
-        return $result;
-    }
-
-    // Kiểm tra file tạm đã giữ trong session
-    private function checkStoredAttachment(array $result, bool $keepTemporary): array
-    {
-        if (! $keepTemporary && $result['attachment'] && ! empty($result['attachment']['temporary'])) {
-            $attachment      = $result['attachment'];
-            $result['error'] = $this->validateAttachment($attachment['name'], $attachment['data']);
-            if ($result['error'] === '') {
-                $result['attachment']['temporary'] = false;
+            $result['attachment'] = ['user_id' => $userId, 'name' => $name, 'data' => $data, 'token' => $token];
+            if ($rawToken !== '') {
+                $this->deleteTemporaryAttachment($userId, $leaveId, $rawToken);
             }
-        }
-        if (! $keepTemporary && ! $result['attachment']) {
-            $result['error'] = __('messages.attachment_required');
         }
 
         return $result;
     }
 
-    // So sánh dữ liệu với trạng thái ban đầu
-    public function hasChanges(array $values, ?array $attachment, array $initial): bool
+    public function readTemporaryAttachment(int $userId, int $leaveId, mixed $token): ?array
     {
-        foreach ($initial['values'] as $field => $initialValue) {
-            $initialValue = str_replace(["\r\n", "\r"], "\n", $initialValue);
-            $currentValue = str_replace(["\r\n", "\r"], "\n", $values[$field]);
-            if ($currentValue !== $initialValue) {
-                return true;
-            }
-        }
-
-        return $this->attachmentFingerprint($attachment) !== $initial['attachment'];
-    }
-
-    // Tạo dấu nhận diện file bằng tên và hash dữ liệu
-    public function attachmentFingerprint(?array $attachment): ?array
-    {
-        if (! $attachment) {
+        if (! $this->isTemporaryToken($token)) {
             return null;
         }
 
-        return ['name' => $attachment['name'], 'hash' => hash('sha256', $attachment['data'])];
+        $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token;
+        $path      = $directory.'/attachment';
+        $disk      = Storage::disk('local');
+        if (! $disk->exists($path) || ! $disk->exists($directory.'/name')) {
+            return null;
+        }
+        clearstatcache(true, $disk->path($path));
+        if ($disk->lastModified($path) <= now()->timestamp - AppConstants::ATTACHMENT_TEMP_TTL) {
+            $this->deleteTemporaryAttachment($userId, $leaveId, $token);
+
+            return null;
+        }
+        if ($disk->size($path) > AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024) {
+            return null;
+        }
+
+        return ['user_id' => $userId, 'name' => $disk->get($directory.'/name'), 'data' => $disk->get($path), 'token' => $token];
     }
 
-    // Xóa dữ liệu nháp khỏi session
-    public function clearDraft(Session $session): void
+    public function deleteTemporaryAttachment(int $userId, int $leaveId, mixed $token): bool
     {
-        $session->forget([
-            'leave_create_draft', 'leave_create_attachment', 'leave_create_save_pending',
-            'leave_create_initial', 'leave_create_exit',
-        ]);
+        if (! $this->isTemporaryToken($token)) {
+            return false;
+        }
+
+        $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token;
+        try {
+            if (Storage::disk('local')->deleteDirectory($directory)) {
+                return true;
+            }
+            Log::error(__('messages.failed_attachment_delete'));
+        } catch (Throwable) {
+            Log::error(__('messages.failed_attachment_delete'));
+        }
+
+        return false;
+    }
+
+    public function deleteExpiredAttachments(): int
+    {
+        $disk    = Storage::disk('local');
+        $deleted = 0;
+        $prefix  = AppConstants::ATTACHMENT_TEMP_DIRECTORY;
+        foreach ($disk->allFiles($prefix) as $path) {
+            if (! str_starts_with($path, $prefix.'/')) {
+                continue;
+            }
+            $parts = explode('/', substr($path, strlen($prefix) + 1));
+            if (count($parts) !== 4 || $parts[3] !== 'attachment' || ! $this->isTemporaryToken($parts[2])) {
+                continue;
+            }
+            $userId  = filter_var($parts[0], FILTER_VALIDATE_INT);
+            $leaveId = filter_var($parts[1], FILTER_VALIDATE_INT);
+            if ($userId === false || $userId < 1 || (string) $userId !== $parts[0]) {
+                continue;
+            }
+            if ($leaveId === false || $leaveId < 0 || (string) $leaveId !== $parts[1]) {
+                continue;
+            }
+            clearstatcache(true, $disk->path($path));
+            if ($disk->lastModified($path) <= now()->timestamp - AppConstants::ATTACHMENT_TEMP_TTL) {
+                if ($this->deleteTemporaryAttachment($userId, $leaveId, $parts[2])) {
+                    $deleted++;
+                }
+            }
+        }
+
+        return $deleted;
+    }
+
+    private function isTemporaryToken(mixed $token): bool
+    {
+        return is_string($token)
+            && strlen($token) === 32
+            && strspn($token, '0123456789abcdef') === 32;
     }
 
     // Kiểm tra các trường dữ liệu và trả về mảng lỗi
@@ -554,7 +541,7 @@ class LeaveService
         if (! mb_check_encoding($title, 'UTF-8')) {
             return __('messages.leave_title_encoding');
         }
-        if (! preg_match('/[^\s\p{Z}]/u', $title)) {
+        if (mb_trim($title) === '') {
             return __('messages.leave_title_required');
         }
         if (mb_strlen($title, 'UTF-8') > AppConstants::TITLE_MAX_LENGTH) {
@@ -632,8 +619,7 @@ class LeaveService
     public function validateAttachment(string $name, string $data): string
     {
         if ($name === '' || ! mb_check_encoding($name, 'UTF-8')
-            || mb_strlen($name, 'UTF-8') > AppConstants::ATTACHMENT_NAME_MAX_LENGTH
-            || preg_match('/[\x00-\x1F\x7F]/', $name)) {
+            || mb_strlen($name, 'UTF-8') > AppConstants::ATTACHMENT_NAME_MAX_LENGTH) {
             return __('messages.attachment_name_invalid', ['max' => AppConstants::ATTACHMENT_NAME_MAX_LENGTH]); // Tên phải hợp lệ, không có ký tự điều khiển và không quá giới hạn ký tự
         }
         if ($data === '') {

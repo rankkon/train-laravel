@@ -48,7 +48,10 @@ class AuthController extends Controller
         if (! is_string($username)) {
             $username = '';
         }
-        $username = trim($username);
+        $trimmedUsername = trim($username);
+        if ($trimmedUsername === '') {
+            $username = '';
+        }
         $password = $request->input('password');
         if (! is_string($password)) {
             $password = '';
@@ -60,6 +63,9 @@ class AuthController extends Controller
 
         if (! $usernameError && ! $passwordError) {
             $user = User::query()->where('username', $username)->first();
+            if ($user === null && $username !== $trimmedUsername) {
+                $user = User::query()->where('username', $trimmedUsername)->first();
+            }
 
             if (! $user) { // Kiểm tra tài khoản tồn tại
                 $usernameError = true;

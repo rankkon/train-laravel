@@ -47,7 +47,6 @@ class Handler extends ExceptionHandler
             return parent::renderExceptionResponse($request, $exception);
         }
 
-        $this->resetDraftConfirmation($request);
         $status  = 500;
         $headers = [];
         if ($exception instanceof HttpExceptionInterface) {
@@ -61,25 +60,6 @@ class Handler extends ExceptionHandler
             report($renderError);
 
             return response(__('messages.page_error'), 500)->header('Cache-Control', 'no-store');
-        }
-    }
-
-    // Bỏ xác nhận và giữ dữ liệu draft để thử lại
-    private function resetDraftConfirmation(Request $request): void
-    {
-        if (! $request->hasSession()) {
-            return;
-        }
-
-        $session = $request->session();
-        foreach (['user_create', 'leave_create'] as $form) {
-            if (! $session->has($form.'_draft')) {
-                continue;
-            }
-
-            $session->put($form.'_resume', true);
-            $session->put($form.'_draft.confirmed', false);
-            $session->forget($form.'_save_pending');
         }
     }
 
