@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\AppConstants;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,43 +29,48 @@ class AuthController extends Controller
     // Hiển thị form đăng nhập
     public function showLogin(): View
     {
-        return view('login', [
+        return view('login', [ // Dữ liệu mặc định cho form đăng nhập
             'username'          => '',
             'usernameError'     => false,
             'passwordError'     => false,
             'loginErrorMessage' => __('messages.login_failed'),
-        ]); // Dữ liệu mặc định cho form đăng nhập
+        ]);
     }
 
     // Kiểm tra thông tin và đăng nhập
     public function login(Request $request): View|RedirectResponse
     {
         if ($request->input('action') === 'clear') {
-            return redirect()->route('login', status: 303); // Đưa form về trạng thái mặc định
+            return redirect()->route('login', status: 303); // Mở lại form đăng nhập mặc định
         }
 
         $username = $request->input('username');
-        if (! is_string($username)) {
+        if (! is_string($username)) { // Chỉ nhận chuỗi
             $username = '';
         }
-        $username = trim($username);
-
+        $trimmedUsername = trim($username);
+        if ($trimmedUsername === '') {
+            $username = '';
+        }
         $password = $request->input('password');
-        if (! is_string($password)) {
+        if (! is_string($password)) { // Chỉ nhận chuỗi
             $password = '';
         }
 
-        $usernameError = $username === ''; // Kiểm tra username có rỗng không
-        $passwordError = $password === ''; // Kiểm tra password có rỗng không
+        $usernameError     = $username === ''; // Kiểm tra username có rỗng không
+        $passwordError     = $password === ''; // Kiểm tra password có rỗng không
         $loginErrorMessage = __('messages.login_failed');
 
         if (! $usernameError && ! $passwordError) {
             $user = User::query()->where('username', $username)->first();
+            if ($user === null && $username !== $trimmedUsername) {
+                $user = User::query()->where('username', $trimmedUsername)->first();
+            }
 
             if (! $user) { // Kiểm tra tài khoản tồn tại
                 $usernameError = true;
-            } elseif ($user->status !== User::STATUS_ACTIVE) { // Kiểm tra tài khoản hoạt động
-                $usernameError = true;
+            } elseif ($user->status !== AppConstants::STATUS_ACTIVE) { // Kiểm tra tài khoản hoạt động
+                $usernameError     = true;
                 $loginErrorMessage = __('messages.account_locked');
             } elseif (! hash_equals($user->password_hash, md5($password))) { // Kiểm tra mật khẩu
                 $passwordError = true;

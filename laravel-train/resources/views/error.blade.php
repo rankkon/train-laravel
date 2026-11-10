@@ -15,6 +15,7 @@
 
     @include('sidebar', ['sidebarFormId' => ''])
 
+    {{-- Chỉ hiển thị thông báo lỗi chung, mã HTTP và header được Handler quyết định. --}}
     <main class="error-content">
         <h1>{{ __('messages.page_error') }}</h1>
     </main>

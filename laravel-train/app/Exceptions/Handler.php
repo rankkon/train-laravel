@@ -16,7 +16,7 @@ use Throwable;
 
 class Handler extends ExceptionHandler
 {
-    // Cấu hình ghi log và phản hồi JSON
+    // Thiết lập exception cần ghi log, tránh log trùng và chọn phản hồi JSON khi phù hợp
     public function register(): void
     {
         $this->stopIgnoring($this->internalDontReport);
@@ -43,51 +43,33 @@ class Handler extends ExceptionHandler
     // Hiển thị giao diện lỗi cho người dùng, không hiển thị chi tiết lỗi
     protected function renderExceptionResponse(mixed $request, Throwable $exception): Response
     {
+        // Giữ định dạng JSON cho API hoặc request yêu cầu JSON thay vì dựng trang HTML.
         if ($this->shouldReturnJson($request, $exception)) {
             return parent::renderExceptionResponse($request, $exception);
         }
 
-        $this->resetDraftConfirmation($request);
-        $status = 500;
+        $status  = 500;
         $headers = [];
         if ($exception instanceof HttpExceptionInterface) {
-            $status = $exception->getStatusCode();
+            $status  = $exception->getStatusCode();
             $headers = $exception->getHeaders();
         }
 
+        // Dựng trang lỗi chung với mã HTTP và header của exception.
         try {
             return response()->view('error', [], $status, $headers)->header('Cache-Control', 'no-store');
         } catch (Throwable $renderError) {
             report($renderError);
 
-            return response(__('messages.page_error'), 500)->header('Cache-Control', 'no-store');
-        }
-    }
-
-    // Bỏ xác nhận và giữ dữ liệu draft để thử lại
-    private function resetDraftConfirmation(Request $request): void
-    {
-        if (! $request->hasSession()) {
-            return;
-        }
-
-        $session = $request->session();
-        foreach (['user_create', 'leave_create'] as $form) {
-            if (! $session->has($form.'_draft')) {
-                continue;
-            }
-
-            $session->put($form.'_resume', true);
-            $session->put($form.'_draft.confirmed', false);
-            $session->forget($form.'_save_pending');
+            return response(__('messages.page_error'), 500)->header('Cache-Control', 'no-store'); // Phản hồi văn bản dự phòng khi không dựng được trang lỗi.
         }
     }
 
     // Tạo thông tin lỗi để ghi log
     protected function buildExceptionContext(Throwable $exception): array
     {
-        $context = $this->context();
-        $httpException = $this->prepareException($exception);
+        $context           = $this->context();
+        $httpException     = $this->prepareException($exception);
         $context['status'] = 500;
         if ($exception instanceof HttpResponseException) {
             $context['status'] = $exception->getResponse()->getStatusCode();
@@ -95,15 +77,15 @@ class Handler extends ExceptionHandler
             $context['status'] = $httpException->getStatusCode();
         }
         $context['exception_type'] = $exception::class;
-        $context['file'] = $exception->getFile();
-        $context['line'] = $exception->getLine();
-
-        $cause = $exception;
+        $context['file']           = $exception->getFile();
+        $context['line']           = $exception->getLine();
+        $cause                     = $exception;
+        // Lần theo chuỗi exception để lấy nguyên nhân gốc giúp kiểm tra log.
         while ($cause->getPrevious() !== null) {
             $cause = $cause->getPrevious();
         }
         if ($cause !== $exception) {
-            $context['cause_type'] = $cause::class;
+            $context['cause_type']    = $cause::class;
             $context['cause_message'] = $cause->getMessage();
         }
 
@@ -119,7 +101,8 @@ class Handler extends ExceptionHandler
 
         $request = $this->container->make('request');
         $context = ['method' => $request->method(), 'path' => $request->path()];
-        $guard = $this->container->make('auth')->guard();
+        $guard   = $this->container->make('auth')->guard();
+        // Lấy ID từ guard đã có hoặc session để tránh phát sinh truy vấn database khi đang xử lý lỗi.
         if ($guard instanceof SessionGuard) {
             if ($guard->hasUser()) {
                 $context['user_id'] = $guard->user()->getAuthIdentifier();

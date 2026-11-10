@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
+use App\Constants\AppConstants;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +19,7 @@ class ActiveUser
 
         $user = $request->user();
 
-        if ($user !== null && $user->status !== User::STATUS_ACTIVE) { // Tài khoản bị khóa sẽ bị hủy đăng nhập, session
+        if ($user !== null && $user->status !== AppConstants::STATUS_ACTIVE) { // Tài khoản bị khóa sẽ bị hủy đăng nhập, session
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

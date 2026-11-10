@@ -1,7 +1,8 @@
+{{-- Chuẩn bị dãy trang gồm trang đầu, trang cuối và các trang gần trang hiện tại. --}}
 @php
-    $page = $paginator->currentPage();
-    $totalPages = $paginator->lastPage();
-    $nearby = \App\Constants\LeaveConstants::PAGINATION_NEARBY_PAGES;
+    $page        = $paginator->currentPage();
+    $totalPages  = $paginator->lastPage();
+    $nearby      = \App\Constants\AppConstants::PAGINATION_NEARBY_PAGES;
     $pageNumbers = [1];
     for ($number = max(2, $page - $nearby); $number <= min($totalPages - 1, $page + $nearby); $number++) {
         $pageNumbers[] = $number;
@@ -11,6 +12,7 @@
     }
     $previousNumber = 0;
 @endphp
+{{-- Hiển thị trang hiện tại, dấu rút gọn và vô hiệu hóa Previous hoặc Next khi ở biên. --}}
 <nav class="leave-pagination">
     @if ($paginator->previousPageUrl() !== null)
         <a href="{{ $paginator->previousPageUrl() }}" class="leave-page-previous">← Previous</a>

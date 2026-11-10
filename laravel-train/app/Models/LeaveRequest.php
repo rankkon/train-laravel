@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Constants\LeaveConstants;
+use App\Constants\AppConstants;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,31 +13,16 @@ class LeaveRequest extends Model
 {
     use HasFactory;
 
-    public const STATUS_NEW = 0; // Trạng thái: Mới tạo
-
-    public const STATUS_APPROVED = 1;  // Trạng thái: Đã duyệt
-
-    public const STATUS_CANCELLED = 2; // Trạng thái: Đã hủy
-
-    public const TYPE_NGHIPHEP = 1; // Mã loại đơn: Nghỉ phép
-
-    public const TYPE_VATTU = 2; // Mã loại đơn: Vật tư
-
-    public const TYPE_GIOLAM = 3; // Mã loại đơn: Giờ làm
-
-    public const TYPE_CHIPHICONGTAC = 4; // Mã loại đơn: Chi phí công tác
-
-    protected $table = 'leave'; // Khai báo tên bảng leave
-
-    public $timestamps = false; // Không dùng cập nhật tự động created_at và updated_at
+    protected $table                = 'leave'; // Khai báo tên bảng leave
+    public $timestamps              = false; // Không dùng cập nhật tự động created_at và updated_at
 
     // Lọc đơn theo phạm vi được xem của người dùng
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        $query->join('users', 'users.id', '=', 'leave.user_id');
+        $query->join('users', 'users.id', '=', 'leave.user_id'); // Lấy phòng ban theo người tạo và loại đơn không còn tài khoản người tạo.
 
-        if ($user->user_type !== User::TYPE_ADMIN) {
+        if ($user->user_type !== AppConstants::TYPE_ADMIN) {
             $query->where('users.department', $user->department);
         }
     }
@@ -50,13 +35,14 @@ class LeaveRequest extends Model
             return;
         }
 
-        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%'; // Thoát các ký tự đặc biệt để ký tự nhập vào được tìm kiếm như ký tự bình thường
+        $pattern    = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%'; // Thoát các ký tự đặc biệt để ký tự nhập vào được tìm kiếm như ký tự bình thường
         $comparison = "REGEXP_REPLACE(%s, ?, '') COLLATE utf8mb4_unicode_520_ci LIKE REGEXP_REPLACE(?, ?, '') ESCAPE '!'";
+        // Gom các điều kiện để không làm thay đổi phạm vi đơn được xem
         $query->where(function (Builder $matches) use ($pattern, $comparison): void {
             $matches->whereRaw(sprintf($comparison, 'users.full_name'), ['\\p{M}', $pattern, '\\p{M}'])
-                ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}'])
-                ->orWhere('leave.leave_type', 0);
-            foreach (LeaveConstants::LEAVE_TYPES as $type => $name) {
+                ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}']);
+            // Tìm theo tên loại đơn hiển thị
+            foreach (AppConstants::LEAVE_TYPES as $type => $name) {
                 $matches->orWhereRaw('(`leave`.leave_type = ? AND '.sprintf($comparison, 'CAST(? AS CHAR)').')', [
                     $type, $name, '\\p{M}', $pattern, '\\p{M}',
                 ]);
@@ -68,16 +54,16 @@ class LeaveRequest extends Model
     protected function casts(): array
     {
         return [
-            'user_id' => 'integer',
+            'user_id'     => 'integer',
             'approver_id' => 'integer',
-            'leave_type' => 'integer',
-            'status' => 'integer',
-            'start_date' => 'date:Y-m-d',
-            'end_date' => 'date:Y-m-d',
+            'leave_type'  => 'integer',
+            'status'      => 'integer',
+            'start_date'  => 'date:Y-m-d',
+            'end_date'    => 'date:Y-m-d',
             'approved_at' => 'date:Y-m-d',
-            'created_at' => 'datetime:Y-m-d H:i:s',
-            'update_at' => 'datetime:Y-m-d H:i:s',
-            'delete_at' => 'datetime:Y-m-d H:i:s',
+            'created_at'  => 'datetime:Y-m-d H:i:s',
+            'update_at'   => 'datetime:Y-m-d H:i:s',
+            'delete_at'   => 'datetime:Y-m-d H:i:s',
         ];
     }
 

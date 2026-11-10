@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Constants\UserConstants;
+use App\Constants\AppConstants;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
@@ -13,22 +13,20 @@ use Throwable;
 
 class UserService
 {
-    public function __construct(private UserValidationService $validation) {}
-
     // Lấy danh sách vai trò và phòng ban được phép chọn khi thêm hoặc sửa người dùng
     public function formOptions(User $viewer, ?User $editedUser = null): array
     {
         $userTypes = [
-            User::TYPE_USER    => UserConstants::USER_TYPES[User::TYPE_USER],
-            User::TYPE_MANAGER => UserConstants::USER_TYPES[User::TYPE_MANAGER],
+            AppConstants::TYPE_USER    => AppConstants::USER_TYPES[AppConstants::TYPE_USER],
+            AppConstants::TYPE_MANAGER => AppConstants::USER_TYPES[AppConstants::TYPE_MANAGER],
         ];
-        $departments = UserConstants::DEPARTMENTS;
-        if ($viewer->user_type === User::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
-            $userTypes = [User::TYPE_USER => UserConstants::USER_TYPES[User::TYPE_USER]];
-            $departments = [$viewer->department => UserConstants::DEPARTMENTS[$viewer->department]];
+        $departments = AppConstants::DEPARTMENTS;
+        if ($viewer->user_type === AppConstants::TYPE_MANAGER) { // Manager chỉ được tạo người dùng thuộc phong ban của mình
+            $userTypes   = [AppConstants::TYPE_USER => AppConstants::USER_TYPES[AppConstants::TYPE_USER]];
+            $departments = [$viewer->department => AppConstants::DEPARTMENTS[$viewer->department]];
         }
-        if ($editedUser !== null && $editedUser->user_type === User::TYPE_ADMIN) {
-            $userTypes = [User::TYPE_ADMIN => UserConstants::USER_TYPES[User::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
+        if ($editedUser !== null && $editedUser->user_type === AppConstants::TYPE_ADMIN) {
+            $userTypes = [AppConstants::TYPE_ADMIN => AppConstants::USER_TYPES[AppConstants::TYPE_ADMIN]]; // Khi sửa admin, chỉ giữ lựa chọn vai trò admin
         }
 
         return ['user_types' => $userTypes, 'departments' => $departments];
@@ -40,11 +38,13 @@ class UserService
         $options = [];
         try {
             DB::transaction(function () use ($userId, $values, $editedUserId, &$options): void {
+                // Khóa tài khoản thao tác và kiểm tra còn hoạt động trước khi ghi dữ liệu
                 $currentUser = User::query()->whereKey($userId)->lockForUpdate()->first();
-                if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
+                if ($currentUser === null || $currentUser->status !== AppConstants::STATUS_ACTIVE) {
                     throw new AuthenticationException;
                 }
                 $editedUser = null;
+                // Khi sửa, kiểm tra quyền với tài khoản mục tiêu và giữ các trường không được phép thay đổi
                 if ($editedUserId > 0) {
                     $editedUser = $currentUser;
                     if ($editedUserId !== $userId) {
@@ -52,9 +52,9 @@ class UserService
                     }
                     abort_if($editedUser === null, 404);
                     Gate::forUser($currentUser)->authorize('manage', $editedUser);
-                    $values['username'] = $editedUser->username;
-                    if ($editedUser->user_type === User::TYPE_ADMIN) {
-                        $values['user_type'] = (string) User::TYPE_ADMIN;
+                    $values['username'] = $editedUser->username; // Lấy username từ database
+                    if ($editedUser->user_type === AppConstants::TYPE_ADMIN) {
+                        $values['user_type'] = (string) AppConstants::TYPE_ADMIN;
                     }
                 } else {
                     Gate::forUser($currentUser)->authorize('create', User::class);
@@ -62,43 +62,47 @@ class UserService
 
                 // kiểm tra lại danh mục theo quyền hiện tại trong transaction
                 $options = $this->formOptions($currentUser, $editedUser);
-
-                $errors = $this->validation->fields($values, $options['user_types'], $options['departments'], checkDuplicates: false, editedUserId: $editedUserId); // Kiểm tra lại các trường
+                $errors  = $this->validateFields($values, $options['user_types'], $options['departments'], checkDuplicates: false, editedUserId: $editedUserId); // Kiểm tra lại các trường
+                // Chỉ kiểm tra trùng sau khi các trường dữ liệu đã hợp lệ
                 if ($errors === []) {
-                    $errors = $this->validation->duplicates($values, editedUserId: $editedUserId);
+                    $errors = $this->validateDuplicates($values, editedUserId: $editedUserId);
                 }
                 if ($errors !== []) {
                     throw ValidationException::withMessages($errors);
                 }
 
+                // Cập nhật hồ sơ đang sửa hoặc tạo tài khoản mới với trạng thái hoạt động
                 if ($editedUser !== null) {
-                    User::query()->whereKey($editedUserId)->update([
+                    $changes = [
                         'full_name'  => $values['full_name'],
                         'email'      => $values['email'] === '' ? null : $values['email'],
                         'birth_date' => $values['birth_date'] === '' ? null : $values['birth_date'],
                         'user_type'  => (int) $values['user_type'],
                         'department' => (int) $values['department'],
                         'update_at'  => now()->format('Y-m-d H:i:s'),
-                    ]);
+                    ];
+                    // Mật khẩu mới để trống khi sửa sẽ giữ nguyên mật khẩu đã lưu
                     if ($values['password'] !== '') {
-                        User::query()->whereKey($editedUserId)->update(['password_hash' => md5($values['password'])]);
+                        $changes['password_hash'] = md5($values['password']);
                     }
+                    User::query()->whereKey($editedUserId)->update($changes);
                 } else {
                     $newUser = new User;
-                    $newUser->username = $values['username'];
-                    $newUser->full_name = $values['full_name'];
+                    $newUser->username      = $values['username'];
+                    $newUser->full_name     = $values['full_name'];
                     $newUser->password_hash = md5($values['password']);
-                    $newUser->email = $values['email'] === '' ? null : $values['email'];
-                    $newUser->birth_date = $values['birth_date'] === '' ? null : $values['birth_date'];
-                    $newUser->user_type = (int) $values['user_type'];
-                    $newUser->department = (int) $values['department'];
-                    $newUser->status = User::STATUS_ACTIVE;
-                    $newUser->created_at = now()->format('Y-m-d H:i:s');
-                    $newUser->update_at = null;
+                    $newUser->email         = $values['email'] === '' ? null : $values['email'];
+                    $newUser->birth_date    = $values['birth_date'] === '' ? null : $values['birth_date'];
+                    $newUser->user_type     = (int) $values['user_type'];
+                    $newUser->department    = (int) $values['department'];
+                    $newUser->status        = AppConstants::STATUS_ACTIVE;
+                    $newUser->created_at    = now()->format('Y-m-d H:i:s');
+                    $newUser->update_at     = null;
                     $newUser->save();
                 }
             });
         } catch (ValidationException $error) {
+            // Trả lỗi theo tên trường và danh mục để dựng lại form
             return [
                 'errors'  => array_map(fn (array $messages): string => $messages[0], $error->errors()),
                 'options' => $options,
@@ -118,10 +122,11 @@ class UserService
         try {
             DB::transaction(function () use ($userId, $targetUserIds, $lock): void {
                 $currentUser = User::query()->whereKey($userId)->lockForUpdate()->first();
-                if ($currentUser === null || $currentUser->status !== User::STATUS_ACTIVE) {
+                if ($currentUser === null || $currentUser->status !== AppConstants::STATUS_ACTIVE) {
                     throw new AuthenticationException;
                 }
 
+                // Kiểm tra quyền với từng tài khoản
                 foreach ($targetUserIds as $targetUserId) {
                     $targetUser = $currentUser;
                     if ($targetUserId !== $userId) {
@@ -130,7 +135,7 @@ class UserService
                     abort_if($targetUser === null, 404);
                     Gate::forUser($currentUser)->authorize('manage', $targetUser); // Kiem tra quyền quản lý người dùng mục tiêu
 
-                    $status = $lock ? User::STATUS_LOCKED : User::STATUS_ACTIVE; // lock = true là khóa, lock = false là mở khóa
+                    $status = $lock ? AppConstants::STATUS_LOCKED : AppConstants::STATUS_ACTIVE; // lock = true là khóa, lock = false là mở khóa
                     User::query()->whereKey($targetUserId)->update(['status' => $status]);
                 }
             });
@@ -141,20 +146,183 @@ class UserService
         }
     }
 
+    // Hoàn tác transaction còn mở qua Laravel hoặc PDO và ghi log
     private function rollbackTransaction(): void
     {
         try {
             $connection = DB::connection();
-            $pdo = $connection->getPdo();
+            $pdo        = $connection->getPdo();
             if ($pdo->inTransaction()) {
                 if ($connection->transactionLevel() > 0) {
                     $connection->rollBack();
                 } else {
-                    $pdo->rollBack();
+                    $pdo->rollBack(); // Rollback trực tiếp khi PDO còn transaction
                 }
             }
         } catch (Throwable) {
             Log::error(__('messages.user_rollback_failed'));
         }
+    }
+
+    // Đọc các trường được phép từ POST
+    public function readValues(array $post, ?User $editedUser = null): array
+    {
+        $values = [
+            'username'   => '', 'full_name' => '', 'password' => '', 'email' => '',
+            'birth_date' => '', 'user_type' => '', 'department' => '',
+        ];
+        $errors = [];
+        foreach (array_keys($values) as $field) {
+            // Giữ username khi sửa và giữ vai trò Admin từ database
+            if (($editedUser !== null && $field === 'username')
+                || ($editedUser?->user_type === AppConstants::TYPE_ADMIN && $field === 'user_type')) {
+                $values[$field] = (string) $editedUser->getRawOriginal($field);
+            } elseif (isset($post[$field])) {
+                if (is_string($post[$field])) {
+                    $values[$field] = $post[$field];
+                } else {
+                    $errors[$field] = __('messages.invalid_form_value'); // Không nhận mảng hoặc giá trị khác chuỗi cho trường nhập
+                }
+            }
+        }
+
+        return ['values' => $values, 'errors' => $errors];
+    }
+
+    // Kiểm tra các trường người dùng, quyền chọn danh mục và dữ liệu trùng
+    public function validateFields(array $values, array $userTypes, array $departments, array $errors = [], bool $checkDuplicates = true, int $editedUserId = 0): array
+    {
+        foreach ($values as $field => $value) {
+            if (isset($errors[$field])) {
+                continue;
+            }
+
+            $message = '';
+            if ($field === 'username') {
+                $message = $this->username($value);
+            } elseif ($field === 'full_name') {
+                $message = $this->fullName($value);
+            } elseif ($field === 'password') {
+                // Chỉ bắt buộc kiểm tra mật khẩu khi thêm mới hoặc đã nhập mật khẩu thay thế
+                if ($editedUserId === 0 || $value !== '') {
+                    $message = $this->password($value);
+                }
+            } elseif ($field === 'email') {
+                $message = $this->email($value);
+            } elseif ($field === 'birth_date') {
+                $message = $this->birthDate($value);
+            } elseif ($field === 'user_type' && ! isset($userTypes[$value])) {
+                $message = __('messages.user_type_invalid');
+            } elseif ($field === 'department' && ! isset($departments[$value])) {
+                $message = __('messages.user_department_invalid');
+            }
+
+            if ($message !== '') {
+                $errors[$field] = $message;
+            }
+        }
+
+        return $checkDuplicates ? $this->validateDuplicates($values, $errors, $editedUserId) : $errors; // Tách kiểm tra trùng thành bước riêng trong transaction
+    }
+
+    // Kiểm tra trùng tên đăng nhập và email
+    public function validateDuplicates(array $values, array $errors = [], int $editedUserId = 0): array
+    {
+        // Kiểm tra trùng dữ liệu username và email khi trường hợp lệ
+        if ($editedUserId === 0 && ! isset($errors['username']) && User::query()->where('username', $values['username'])->exists()) {
+            $errors['username'] = __('messages.username_exists');
+        }
+        if (! isset($errors['email']) && $values['email'] !== ''
+            && User::query()->where('email', $values['email'])->where('id', '!=', $editedUserId)->exists()) {
+            $errors['email'] = __('messages.user_email_exists');
+        }
+
+        return $errors;
+    }
+
+    // Kiểm tra username bắt buộc và giới hạn số ký tự
+    private function username(string $value): string
+    {
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            return __('messages.invalid_form_value');
+        }
+        if (mb_trim($value) === '') { // Chuỗi chỉ có khoảng trắng cũng được xem là rỗng
+            return __('messages.username_required');
+        }
+        if (mb_strlen($value, 'UTF-8') > AppConstants::USERNAME_MAX_LENGTH) {
+            return __('messages.username_too_long', ['max' => AppConstants::USERNAME_MAX_LENGTH]);
+        }
+
+        return '';
+    }
+
+    // Kiểm tra họ tên bắt buộc, và giới hạn số ký tự
+    private function fullName(string $value): string
+    {
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            return __('messages.invalid_form_value');
+        }
+        if (mb_trim($value) === '') { // Chỉ kiểm tra rỗng, không thay đổi giá trị người dùng đã nhập
+            return __('messages.user_full_name_required');
+        }
+        if (mb_strlen($value, 'UTF-8') > AppConstants::USER_FULL_NAME_MAX_LENGTH) {
+            return __('messages.user_full_name_too_long', ['max' => AppConstants::USER_FULL_NAME_MAX_LENGTH]);
+        }
+
+        return '';
+    }
+
+    // Kiểm tra mật khẩu
+    private function password(string $value): string
+    {
+        if ($value === '') {
+            return __('messages.user_password_required');
+        }
+        if (! mb_check_encoding($value, 'UTF-8') // Mật khẩu phải đủ độ dài, có chữ cái, số và ký tự đặc biệt
+            || mb_strlen($value, 'UTF-8') < AppConstants::USER_PASSWORD_MIN_LENGTH
+            || ! preg_match('/\p{L}/u', $value)
+            || ! preg_match('/[0-9]/', $value)
+            || ! preg_match('/[\p{P}\p{S}]/u', $value)) {
+            return __('messages.user_password_format', ['min' => AppConstants::USER_PASSWORD_MIN_LENGTH]);
+        }
+
+        return '';
+    }
+
+    // Kiểm tra định dạng email
+    private function email(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+        if (strlen($value) > AppConstants::USER_EMAIL_MAX_LENGTH) {
+            return __('messages.user_email_too_long', ['max' => AppConstants::USER_EMAIL_MAX_LENGTH]);
+        }
+        if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
+            return __('messages.user_email_format');
+        }
+
+        return '';
+    }
+
+    // Cho phép ngày sinh rỗng. Nếu có phải đúng ngày lịch và trước hôm nay
+    private function birthDate(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+
+        $parts = explode('-', $value); // Tách ngày theo cấu trúc YYYY-MM-DD trước khi kiểm tra ngày lịch
+        if (count($parts) !== 3
+            || strlen($parts[0]) !== 4 || strlen($parts[1]) !== 2 || strlen($parts[2]) !== 2
+            || ! ctype_digit($parts[0]) || ! ctype_digit($parts[1]) || ! ctype_digit($parts[2])
+            || ! checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
+            return __('messages.date_invalid', ['label' => 'Ngày sinh']);
+        }
+        if ($value >= now()->toDateString()) { // Ngày sinh phải trước ngày hiện tại
+            return __('messages.user_birth_date_must_be_past');
+        }
+
+        return '';
     }
 }

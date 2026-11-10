@@ -3,6 +3,7 @@
 @endif
 <aside class="sidebar">
     <nav class="menu-list">
+        {{-- Trong form thêm/sửa, menu gửi POST để kiểm tra thay đổi trước khi chuyển trang; ngoài form dùng liên kết thường. --}}
         @if ($sidebarFormId !== '')
             <button form="{{ $sidebarFormId }}" name="action" value="exit_dashboard" class="menu-item">
                 <span class="menu-label">Dashboard</span>
@@ -36,6 +37,7 @@
     </nav>
 </aside>
 @if ($sidebarFormId === '')
+{{-- Trang không có form nghiệp vụ dùng checkbox và CSS để mở popup xác nhận đăng xuất. --}}
 <div class="popup-overlay logout-confirm-popup">
     <form method="post" action="{{ route('logout') }}" class="popup-dialog">
         <header class="popup-header">
@@ -49,4 +51,12 @@
         </div>
     </form>
 </div>
+<script>
+    // Đưa focus vào nút đồng ý khi mở popup đăng xuất ngoài trang form.
+    document.getElementById('logout-confirm-toggle').addEventListener('change', function () {
+        if (this.checked) {
+            document.querySelector('.logout-confirm-popup .popup-confirm').focus();
+        }
+    });
+</script>
 @endif

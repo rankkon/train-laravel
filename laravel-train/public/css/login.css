@@ -90,7 +90,7 @@
     left: 133px;
     top: 3px;
     margin: 0;
-    padding: 7px 10px 14px;
+    padding: 10px;
     border: 1px solid #CCCCCC;
     border-radius: 4px;
     background: #FFFFFF;
@@ -103,11 +103,21 @@
     color: #0D0C0C;
 }
 
+.login-page .login-password input {
+    padding-right: 40px;
+}
+
+.login-page .password-toggle {
+    top: 7px;
+}
+
 .login-page .login-placeholder {
     position: absolute;
-    height: 17px;
+    display: flex;
+    align-items: center;
+    height: 40px;
     left: 144px;
-    top: 11px;
+    top: 3px;
     font-weight: 400;
     font-size: 14px;
     line-height: 15.992px;

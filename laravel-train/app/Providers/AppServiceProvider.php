@@ -11,9 +11,10 @@ class AppServiceProvider extends ServiceProvider
     // Đăng ký thành phần ứng dụng
     public function register(): void
     {
-        $this->app->singleton(ExceptionHandler::class, Handler::class);
+        $this->app->singleton(ExceptionHandler::class, Handler::class); // Đăng ký Handler của ứng dụng thay cho bộ xử lý exception mặc định.
     }
 
-    // Khởi tạo thành phần ứng dụng
-    public function boot(): void {}
+    // Điểm khởi tạo thành phần ứng dụng
+    public function boot(): void {
+    }
 }

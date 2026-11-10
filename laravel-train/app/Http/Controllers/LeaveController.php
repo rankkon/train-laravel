@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Constants\LeaveConstants;
+use App\Constants\AppConstants;
 use App\Models\LeaveRequest;
-use App\Services\LeaveDraftService;
 use App\Services\LeaveService;
-use App\Services\LeaveValidationService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,229 +15,161 @@ use Illuminate\Support\Facades\Gate;
 class LeaveController extends Controller
 {
     // Hiển thị và xử lý các bước nhập, xác nhận, hủy và lưu đơn
-    public function create(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService): Response|RedirectResponse
+    public function create(Request $request, LeaveService $leaveService): Response|RedirectResponse
     {
-        return $this->form($request, $draftService, $validation, $leaveService);
+        return $this->form($request, $leaveService);
     }
 
-    // Nạp dữ liệu nháp và hiển thị form chỉnh sửa đơn
-    public function edit(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService, string $leave): Response|RedirectResponse
+    // Kiểm tra ID, tải thông tin cần thiết và xác nhận quyền sửa đơn
+    public function edit(Request $request, LeaveService $leaveService, string $leave): Response|RedirectResponse
     {
         $leaveId = filter_var($leave, FILTER_VALIDATE_INT);
         abort_if($leaveId === false || $leaveId < 1, 400);
 
-        $editedLeave = LeaveRequest::query()->findOrFail($leaveId);
+        $query = LeaveRequest::query();
+        if ($request->isMethod('post') && is_array($request->post('original_values'))) {
+            $query->select(['id', 'user_id', 'status', 'attachment_original_name', 'attachment_path']); // Chỉ đọc lại thông tin phục vụ kiểm tra quyền, trạng thái và file
+        }
+        $editedLeave = $query->findOrFail($leaveId);
         Gate::authorize('update', $editedLeave);
 
-        return $this->form($request, $draftService, $validation, $leaveService, $editedLeave);
+        return $this->form($request, $leaveService, $editedLeave);
     }
 
-    // Xử lý form nhập, xác nhận, hủy và lưu đơn
-    private function form(Request $request, LeaveDraftService $draftService, LeaveValidationService $validation, LeaveService $leaveService, ?LeaveRequest $leave = null): Response|RedirectResponse
+    // Xử lý chung form thêm/sửa đơn
+    private function form(Request $request, LeaveService $leaveService, ?LeaveRequest $leave = null): Response|RedirectResponse
     {
-        $leaveId = $leave?->id ?? 0;
-        $formTitle = $leave === null ? 'Thêm mới đơn' : 'Sửa đơn';
-        $formAction = $leave === null ? route('leaves.create.submit') : route('leaves.edit.submit', ['leave' => $leaveId]);
-        $minimumDate = $leave === null ? now()->toDateString() : ''; // Sửa đơn có thể chọn ngày trong quá khứ
-        $user = $request->user(); // Lấy thông tin người dùng hiện tại
-        $approvers = $user->leaveApprovers(); // Lấy danh sách người duyệt đơn của người dùng
-        $leaveTypes = LeaveConstants::LEAVE_TYPES; // Lấy danh sách loại đơn
-        $defaultValues = $draftService->emptyValues(); // Khởi tạo giá trị mặc định cho form
-        $defaultValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id;
-        $defaultValues['leave_type'] = (string) array_key_first($leaveTypes);
-        $defaultValues['start_date'] = $minimumDate; // Lấy ngày hiện tại làm ngày mặc định
-        $defaultValues['end_date'] = $defaultValues['start_date']; // Ngày kết thúc mặc định bằng ngày bắt đầu
+        $leaveId                    = $leave?->id ?? 0;
+        $formTitle                  = $leave === null ? 'Thêm mới đơn' : 'Sửa đơn';
+        $formAction                 = $leave === null ? route('leaves.create.submit') : route('leaves.edit.submit', ['leave' => $leaveId]);
+        $minimumDate                = $leave === null ? now()->toDateString() : ''; // Sửa đơn có thể chọn ngày trong quá khứ
+        $user                       = $request->user(); // Lấy thông tin người dùng hiện tại
+        $approvers                  = $user->leaveApprovers(); // Lấy danh sách người duyệt đơn của người dùng
+        $leaveTypes                 = AppConstants::LEAVE_TYPES; // Lấy danh sách loại đơn
+        $clearValues                = $leaveService->emptyValues(); // Khởi tạo giá trị mặc định cho form
+        $clearValues['approver_id'] = $approvers->isEmpty() ? '' : (string) $approvers->first()->id; // Mặc định chọn người duyệt đầu tiên nếu có
+        $clearValues['leave_type']  = (string) array_key_first($leaveTypes); // Mặc định chọn loại đơn đầu tiên
+        $clearValues['start_date']  = $minimumDate; // Khi thêm mới, ngày bắt đầu mặc định là hôm nay
+        $clearValues['end_date']    = $clearValues['start_date']; // Ngày kết thúc mặc định bằng ngày bắt đầu
+        $values                     = $clearValues;
+        $errors                     = []; // Lỗi xác thực hiện tại
+        $showSavePopup              = false; //Điều khiển hiển thị popup xác nhận lưu đơn
+        $status                     = 200;
+        $attachment                 = $leave === null ? null : ['name' => $leave->attachment_original_name]; // Tệp đính kèm hiện tại
+        // Khi sửa, lấy dữ liệu đơn làm giá trị ban đầu và điều chỉnh người duyệt nếu lựa chọn cũ không còn hợp lệ
+        if ($leave !== null) {
+            foreach (array_keys($values) as $field) {
+                $values[$field] = (string) $leave->getRawOriginal($field);
+            }
+            if (! $approvers->contains('id', (int) $values['approver_id'])) {
+                $values['approver_id'] = $clearValues['approver_id'];
+            }
+        }
 
-        $state = $draftService->prepare($request, $defaultValues, $approvers, $leave); // Trạng thái của form được chuẩn bị từ session hoặc mặc định
-        $values = $state['values']; // Giá trị hiện tại của form (nháp hoặc mặc định)
-        $errors = $state['errors']; // Lỗi xác thực hiện tại
-        $attachment = $state['attachment']; // Tệp đính kèm hiện tại
-        $session = $request->session();
-        $isConfirmation = false; // Cờ xác nhận (true nếu người dùng đã xác nhận form)
-        $showSavePopup = false; //Điều khiển hiển thị popup xác nhận lưu đơn
-        $showExitPopup = false; //Điều khiển hiển thị popup xác nhận thoát form
-        $exitDestination = '';
-        $exitMessage = __('messages.confirm_exit');
-        $status = 200;
-        $exitActions = [
-            'exit_dashboard' => 'dashboard', 'exit_users' => 'users',
-            'exit_list' => 'leaves', 'exit_logout' => 'logout',
-        ]; // Ánh xạ các hành động thoát form sang các điểm đến tương ứng
-        $exitUrls = [
-            'dashboard' => route('dashboard'), 'users' => route('users.index'),
-            'leaves' => route('leaves.index'), 'logout' => route('logout'),
-        ]; // Ánh xạ các điểm đến thoát form sang URL tương ứng
+        $originalValues  = $this->originalFormValues($request, $values); // Dữ liệu gốc để hiển thị
+        $values          = $originalValues; // Dữ liệu sẽ được điền trên giao diện và cập nhật lại khi đọc POST
+        $showExitPopup   = false; // Điều khiển popup xác nhận rời trang
+        $showClearPopup  = false; // Điều khiển popup xác nhận Xóa trống
+        $exitDestination = ''; // Route sẽ chuyển đến sau khi người dùng xác nhận
+        $exitMessage     = __('messages.confirm_exit');
+        $exitActions     = [ // Các thao tác trên sidebar với route đích
+            'exit_dashboard' => 'dashboard',
+            'exit_users'     => 'users.index',
+            'exit_list'      => 'leaves.index',
+            'exit_logout'    => 'logout',
+        ];
 
         if ($request->isMethod('post')) {
-            $action = $request->post('action', 'validate');
-            if (! is_string($action)) {
-                $action = '';
-            }
+            $action         = $request->post('action', 'validate');
+            $allowedActions = array_merge(['validate', 'save', 'clear', 'confirm_clear', 'confirm_exit'], array_keys($exitActions)); // Chỉ nhận các thao tác được form hỗ trợ
+            abort_unless(is_string($action) && in_array($action, $allowedActions, true), 400);
+            if ($request->request->count() === 0 && $request->files->count() === 0 && (int) $request->server('CONTENT_LENGTH', 0) > 0) {
+                $status         = 400;
+                $errors['form'] = __('messages.post_data_unreadable', ['size' => AppConstants::ATTACHMENT_MAX_MB]);
+            } elseif ($action === 'confirm_exit') {
+                $exitDestination = $request->post('exit_destination');
+                abort_unless(is_string($exitDestination) && in_array($exitDestination, ['dashboard', 'users.index', 'leaves.index'], true), 400); // Chỉ cho phép chuyển đến những trang đã khai báo
+                $leaveService->deleteTemporaryAttachment($user->id, $leaveId, $request->post('attachment_token'));
 
-            if ($request->request->count() === 0 && $request->files->count() === 0
-                && (int) $request->server('CONTENT_LENGTH', 0) > 0) {
-                $status = 400;
-                $errors['form'] = __('messages.post_data_unreadable', ['size' => LeaveConstants::ATTACHMENT_MAX_MB]);
-            } elseif (isset($exitActions[$action])) { // Kiểm tra thay đổi trước khi thoát form
-                $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
-                $exitDestination = $exitActions[$action];
-                $session->forget(['leave_create_save_pending', 'leave_create_exit']);
-                $uploadError = '';
-                $hasInvalidValues = false;
-
-                if (! $isConfirmation) { // Đọc lại trường nhập khi chưa xác nhận
-                    $form = $draftService->readValues($request->post());
-                    $values = $form['values'];
-                    $hasInvalidValues = $form['errors'] !== [];
-                    $errors = array_replace($errors, $form['errors']);
-
-                    $upload = $draftService->readAttachment($request, $attachment, true); // Giữ file tạm cho đến khi xác nhận rời trang
-                    $attachment = $upload['attachment'];
-                    $uploadError = $upload['error'];
-                    if ($attachment) {
-                        $session->put('leave_create_attachment', $attachment);
-                    } else {
-                        $session->forget('leave_create_attachment');
-                    }
-                    if ($uploadError !== '') {
-                        $errors['attachment'] = $uploadError;
-                    }
-                    $session->put('leave_create_draft', [ // Giữ dữ liệu nháp đến khi xác nhận rời trang
-                        'user_id' => $user->id, 'leave_id' => $leaveId, 'values' => $values,
-                        'confirmed' => false, 'errors' => $errors,
-                    ]);
-                }
-
-                if ($draftService->hasChanges($values, $attachment, $state['initial']) // So sánh dữ liệu nháp với dữ liệu ban đầu để hiện quyết định popup hay không
-                    || $uploadError !== '' || $hasInvalidValues) {
-                    $session->put('leave_create_exit', $exitDestination);
-                    $showExitPopup = true;
-                    if ($exitDestination === 'logout') {
-                        $exitMessage = __('messages.confirm_logout_with_changes'); // Thông báo xác nhận đăng xuất khi có thay đổi chưa lưu
-                    }
-                } elseif ($exitDestination === 'logout') {
-                    $session->put('leave_create_exit', $exitDestination);
-                    $showExitPopup = true;
-                    $exitMessage = __('messages.confirm_logout'); // Thông báo xác nhận đăng xuất khi không có thay đổi chưa lưu
-                } else {
-                    $draftService->clear($session);
-
-                    return redirect($exitUrls[$exitDestination], 303);
-                }
-            } elseif ($action === 'confirm_exit' || $action === 'cancel_exit') {
-                $isConfirmation = (bool) $session->get('leave_create_draft.confirmed');
-                abort_if(! $session->has('leave_create_exit')
-                    || ($action === 'confirm_exit' && $session->get('leave_create_exit') === 'logout'), 400); // Kiểm tra xác nhận thoát form và không cho phép xác nhận đăng xuất
-                $exitDestination = $session->get('leave_create_exit');
-                $session->forget('leave_create_exit');
-                if ($action === 'confirm_exit') {
-                    $draftService->clear($session);
-
-                    return redirect($exitUrls[$exitDestination], 303);
+                return redirect()->route($exitDestination, status: 303);
+            } elseif ($action === 'confirm_clear') {
+                $leaveService->deleteTemporaryAttachment($user->id, $leaveId, $request->post('attachment_token')); // Chỉ bỏ file tạm sau khi người dùng đồng ý Xóa trống
+                $values = $originalValues; // Form sửa phục hồi dữ liệu lúc mở và giữ file đã lưu
+                // Form thêm mới trở về mặc định    
+                if ($leave === null) {
+                    $values         = $clearValues;
+                    $originalValues = $values;
                 }
             } else {
-                $session->forget('leave_create_exit');
-                if ($action === 'clear') { // xóa dữ liệu nháp và khởi tạo lại form
-                    $draftService->clear($session);
-                    $session->put('leave_create_initial', $state['initial']);
-                    $session->put('leave_create_draft', [
-                        'user_id' => $user->id, 'leave_id' => $leaveId,
-                        'values' => $defaultValues, 'confirmed' => false,
-                    ]);
-
-                    if ($leave === null) {
-                        return redirect()->route('leaves.create', status: 303);
-                    }
-                    $values = $defaultValues;
-                    $attachment = null;
-                    $errors = [];
-                } elseif ($action === 'back') { // Quay lại form nhập và giữ dữ liệu nháp
-                    $session->forget('leave_create_save_pending');
-                    $session->put('leave_create_draft.confirmed', false);
-                } elseif ($action === 'validate') { // Xác thực dữ liệu nháp và lưu trạng thái xác nhận
-                    $session->forget('leave_create_save_pending');
-                    $form = $draftService->readValues($request->post());
-                    $values = $form['values'];
+                // Đọc các trường được phép và lỗi sai kiểu từ POST để giữ dữ liệu hiện tại qua bước xác nhận
+                $form         = $leaveService->readValues($request->post());
+                $values       = $form['values'];
+                $isSaveAction = in_array($action, ['validate', 'save'], true); // Phân biệt thao tác lưu đơn với xóa trống (hoặc chuyển trang)
+                if ($isSaveAction) {
                     $values['title'] = trim($values['title']);
-                    $errors = $form['errors'];
-
-                    $fieldErrors = $validation->fields($values, $approvers, $leaveTypes, $minimumDate); // Xác thực dữ liệu nháp và trả về lỗi nếu có
-                    foreach ($fieldErrors as $field => $message) {
-                        if (! isset($errors[$field])) {
-                            $errors[$field] = $message;
+                }
+                $errors     = $form['errors'];
+                $upload     = $leaveService->readAttachment($request, $leave); // Kiểm tra file mới hoặc dùng lại file tạm, file đã lưu
+                $attachment = $upload['attachment'];
+                // Không yêu cầu chọn file khi chỉ xóa trống hoặc rời trang
+                if ($upload['error'] !== '' && ($isSaveAction || $upload['error'] !== __('messages.attachment_required'))) {
+                    $errors['attachment'] = $upload['error'];
+                }
+                if ($action === 'clear') {
+                    $showClearPopup = $errors !== [] || isset($attachment['token']) || $this->formHasChanges($values, $originalValues); // Chỉ hỏi Xóa trống khi có thay đổi, file đính kèm mới
+                } elseif (isset($exitActions[$action])) {
+                    $exitDestination = $exitActions[$action];
+                    $hasChanges      = $errors !== [] || isset($attachment['token']) || $this->formHasChanges($values, $originalValues); // File tạm mới chọn cũng được xem là thay đổi
+                    // Có thay đổi thì hỏi trước khi rời trang
+                    if ($hasChanges || $exitDestination === 'logout') {
+                        $showExitPopup = true;
+                        if ($exitDestination === 'logout') {
+                            $exitMessage = $hasChanges ? __('messages.confirm_logout_with_changes') : __('messages.confirm_logout');
                         }
-                    }
-
-                    $upload = $draftService->readAttachment($request, $attachment);
-                    $attachment = $upload['attachment'];
-                    if ($attachment) {
-                        $session->put('leave_create_attachment', $attachment);
                     } else {
-                        $session->forget('leave_create_attachment');
+                        return redirect()->route($exitDestination, status: 303);
                     }
-                    if ($upload['error'] !== '') {
-                        $errors['attachment'] = $upload['error'];
-                    }
-                    $isConfirmation = $errors === []; // Chỉ chuyển sang trạng thái xác nhận nếu không có lỗi
-                    $session->put('leave_create_draft', [
-                        'user_id' => $user->id, 'leave_id' => $leaveId, 'values' => $values,
-                        'confirmed' => $isConfirmation, 'errors' => $errors,
-                    ]);
-                } elseif (in_array($action, ['confirm_save', 'cancel_save', 'save'], true)) { // Xử lý lưu dữ liệu nháp và xác nhận lưu
-                    abort_unless($session->get('leave_create_draft.confirmed'), 400);
-
-                    if ($action === 'cancel_save') {
-                        $isConfirmation = true;
-                        $session->forget('leave_create_save_pending');
-                    } elseif ($action === 'confirm_save') {
-                        $isConfirmation = true;
-                        $session->put('leave_create_save_pending', true);
-                        $showSavePopup = true;
-                    } else {
-                        abort_unless($session->get('leave_create_save_pending'), 400);
-
+                } else {
+                    if ($action === 'save' && $errors === []) {
+                        // Sau khi đồng ý lưu, kiểm tra lại tài khoản, quyền, dữ liệu và file trong transaction
                         try {
-                            $errors = $leaveService->save($user->id, $values, $attachment, $leaveId); // Lưu dữ liệu nháp từ session
+                            $errors = $leaveService->save($user->id, $values, $attachment, $leaveId);
                         } catch (AuthenticationException) {
-                            Auth::logout();
+                            Auth::logout(); // Tài khoản thao tác không còn hợp lệ tại thời điểm lưu
 
                             return redirect()->route('login', status: 303);
                         }
-
-                        if ($errors !== []) { // Nếu có lỗi thì bỏ cờ xác nhận, thành công thì xóa nháp và chuyển về danh sách đơn
-                            $session->forget('leave_create_save_pending');
-                            $session->put('leave_create_draft.confirmed', false);
-                        } else {
-                            $draftService->clear($session);
-
+                        if ($errors === []) { // Chỉ trở về danh sách khi lưu thành công
                             return redirect()->route('leaves.index', status: 303);
                         }
+                    } else {
+                        $errors = array_replace($leaveService->validateFields($values, $approvers, $leaveTypes, $minimumDate), $errors); // Kiểm tra trường
                     }
-                } else {
-                    abort(400);
+                    $showSavePopup = $action === 'validate' && $errors === []; // Bấm Lưu chỉ mở popup sau khi dữ liệu hợp lệ
                 }
             }
         }
 
-        $displayValues = [];
         foreach ($values as $field => $value) {
-            $displayValues[$field] = mb_check_encoding($value, 'UTF-8') ? $value : '';
+            $values[$field] = mb_check_encoding($value, 'UTF-8') ? $value : '';
         }
 
+        // Dựng lại form bằng dữ liệu, file hiện tại, lỗi và trạng thái popup mà không lưu form vào session
         return response()->view('leaves.form', [
             'formTitle'       => $formTitle,
             'formAction'      => $formAction,
             'approvers'       => $approvers,
             'leaveTypes'      => $leaveTypes,
-            'values'          => $displayValues,
+            'originalValues'  => $originalValues,
+            'values'          => $values,
             'errors'          => $errors,
-            'attachment'      => $attachment,
-            'showExitPopup'   => $showExitPopup,
-            'exitDestination' => $exitDestination,
-            'exitMessage'     => $exitMessage,
-            'isConfirmation'  => $isConfirmation,
+            'attachment'      => $attachment === null ? null : ['name' => $attachment['name'], 'token' => $attachment['token'] ?? ''],
             'minimumDate'     => $minimumDate,
             'showSavePopup'   => $showSavePopup,
+            'showExitPopup'   => $showExitPopup,
+            'showClearPopup'  => $showClearPopup,
+            'exitDestination' => $exitDestination,
+            'exitMessage'     => $exitMessage,
         ], $status);
     }
 
@@ -253,24 +183,29 @@ class LeaveController extends Controller
     public function handleListAction(Request $request, LeaveService $leaveService): Response|RedirectResponse
     {
         $action = $request->post('action');
+        // Chỉ nhận các thao tác mở, đóng hoặc xác nhận popup duyệt và hủy đơn
         abort_unless(is_string($action) && in_array($action, [
             'open_approve', 'open_cancel', 'close_popup', 'confirm_approve', 'confirm_cancel',
         ], true), 400);
 
         $filters = $this->listFilters($request); // Giữ từ khóa tìm kiếm và số trang
-        $search = $filters['search'];
-        $page = $filters['page'];
+        $search  = $filters['search'];
+        $page    = $filters['page'];
+        if ($filters['sort'] !== '') {
+            $page = 1;
+        }
 
         if ($action === 'close_popup') {
             return redirect()->route('leaves.index', ['q' => $search, 'page' => $page], 303);
         }
 
-        $rawId = $request->post('leave_id');
+        $rawId   = $request->post('leave_id');
         $leaveId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false; // Kiểm tra ID đơn hợp lệ
         abort_if($leaveId === false || $leaveId < 1, 400);
 
-        $popup = in_array($action, ['open_cancel', 'confirm_cancel'], true) ? 'cancel' : 'approve';
+        $popup = in_array($action, ['open_cancel', 'confirm_cancel'], true) ? 'cancel' : 'approve'; // Chọn loại popup theo thao tác
 
+        // Kiểm tra đơn và quyền xử lý trước khi hiển thị popup
         if ($action === 'open_approve' || $action === 'open_cancel') {
             $leave = LeaveRequest::query()->with('user')->findOrFail($leaveId);
             abort_if($leave->user === null, 404);
@@ -280,6 +215,7 @@ class LeaveController extends Controller
         }
 
         $reason = '';
+        // Yêu cầu và kiểm tra lý do khi người dùng xác nhận hủy đơn
         if ($action === 'confirm_cancel') {
             $rawReason = $request->post('cancel_reason');
             if ($rawReason !== null && ! is_string($rawReason)) {
@@ -292,7 +228,7 @@ class LeaveController extends Controller
                 );
             }
 
-            $reason = trim($rawReason ?? '');
+            $reason      = trim($rawReason ?? '');
             $reasonError = $this->cancelReasonError($reason);
 
             if ($reasonError !== '') {
@@ -306,6 +242,7 @@ class LeaveController extends Controller
             }
         }
 
+        // Service kiểm tra lại quyền và trạng thái trong transaction
         try {
             $leaveService->process($request->user()->id, $leaveId, $popup, $reason);
         } catch (AuthenticationException) {
@@ -317,45 +254,72 @@ class LeaveController extends Controller
         return redirect()->route('leaves.index', ['q' => $search, 'page' => $page], 303);
     }
 
-    // Chuẩn bị dữ liệu danh sách và popup
+    // Chuẩn bị dữ liệu danh sách đơn
     private function renderList(
         Request $request,
         string $processPopup = '',
-        int $processLeaveId = 0,
+        int $processLeaveId  = 0,
         string $cancelReason = '',
         array $processErrors = [],
-        int $status = 200,
+        int $status          = 200,
     ): Response {
-        $filters = $this->listFilters($request);
-        $search = $filters['search'];
-        $requestedPage = $filters['page'];
-
-        $query = LeaveRequest::query()
+        $filters         = $this->listFilters($request);
+        $search          = $filters['search'];
+        $requestedPage   = $filters['page'];
+        $sortColumn      = $filters['sort'];
+        $sortDirection   = $filters['direction'];
+        $queryParameters = ['q' => $search];
+        if ($sortColumn !== '') {
+            $queryParameters['sort']      = $sortColumn;
+            $queryParameters['direction'] = $sortDirection;
+        }
+        // Lọc phạm vi được xem và từ khóa trước khi đếm, sắp xếp và phân trang
+        $query         = LeaveRequest::query()
             ->visibleTo($request->user())
             ->matching($search);
 
-        $total = (clone $query)->count();
-        $perPage = LeaveConstants::LEAVES_PER_PAGE;
+        // Giới hạn trang yêu cầu theo số bản ghi sau lọc, danh sách rỗng vẫn có một trang
+        $total    = (clone $query)->count();
+        $perPage  = AppConstants::LEAVES_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
-        $page = min($requestedPage, $lastPage);
-
-        $leaves = $query->with('user:id,user_type,department')
-            ->orderBy('leave.status')
-            ->orderByDesc('leave.created_at')
-            ->orderByDesc('leave.id')
+        $page     = min($requestedPage, $lastPage);
+        if ($sortColumn === '' || ($sortColumn === 'stt' && $sortDirection === 'asc')) {
+            $query->orderBy('leave.status')->orderByDesc('leave.created_at')->orderByDesc('leave.id');
+        } elseif ($sortColumn === 'stt') {
+            $query->orderByDesc('leave.status')->orderBy('leave.created_at')->orderBy('leave.id');
+        } else {
+            if ($sortColumn === 'leave_type') {
+                $typeOrder    = 'CASE `leave`.leave_type';
+                $typeBindings = [];
+                foreach (AppConstants::LEAVE_TYPES as $type => $name) {
+                    $typeOrder      .= ' WHEN ? THEN ?';
+                    $typeBindings[]  = $type;
+                    $typeBindings[]  = $name;
+                }
+                $query->orderByRaw($typeOrder.' END '.$sortDirection, $typeBindings);
+            } else {
+                $databaseColumn = $sortColumn === 'full_name' ? 'users.full_name' : 'leave.'.$sortColumn;
+                $query->orderBy($databaseColumn, $sortDirection);
+            }
+            $query->orderByDesc('leave.id');
+        }
+        // Nạp sẵn người tạo để kiểm tra quyền từng dòng và ưu tiên đơn Mới, Đã duyệt, Đã hủy
+        $leaves   = $query->with('user:id,user_type,department')
             ->paginate($perPage, [
                 'leave.id', 'leave.user_id', 'leave.approver_id', 'leave.leave_type',
                 'leave.created_at', 'leave.status', 'leave.end_date', 'leave.title', 'users.full_name',
             ], page: $page, total: $total)
             ->withPath(route('leaves.index'))
-            ->appends(['q' => $search]);
+            ->appends($queryParameters);
 
         return response()->view('leaves.index', [
             'leaves'         => $leaves,
             'search'         => $search,
-            'actionUrl'      => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
-            'leaveTypes'     => LeaveConstants::LEAVE_TYPES,
-            'leaveStatuses'  => LeaveConstants::LEAVE_STATUSES,
+            'sortColumn'     => $sortColumn,
+            'sortDirection'  => $sortDirection,
+            'actionUrl'      => route('leaves.actions', $queryParameters + ['page' => $requestedPage]),
+            'leaveTypes'     => AppConstants::LEAVE_TYPES,
+            'leaveStatuses'  => AppConstants::LEAVE_STATUSES,
             'processPopup'   => $processPopup,
             'processLeaveId' => $processLeaveId,
             'cancelReason'   => $cancelReason,
@@ -367,13 +331,26 @@ class LeaveController extends Controller
     private function listFilters(Request $request): array
     {
         $rawSearch = $request->query('q');
-        $search = is_string($rawSearch) ? trim($rawSearch) : '';
-        $page = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
+        $search    = is_string($rawSearch) ? trim($rawSearch) : '';
+        $page      = filter_var($request->query('page', 1), FILTER_VALIDATE_INT);
         if ($page === false || $page < 1) {
-            $page = 1;
+            $page = 1; // Trang sai định dạng hoặc nhỏ hơn 1 được đưa về trang đầu
         }
 
-        return ['search' => $search, 'page' => $page];
+        $sort      = $request->query('sort', '');
+        $direction = $request->query('direction', 'asc');
+        if (! is_string($sort) || ! in_array($sort, ['stt', 'full_name', 'leave_type', 'created_at', 'status', 'end_date', 'title'], true)
+            || ! is_string($direction) || ! in_array($direction, ['asc', 'desc'], true)) {
+            $sort      = '';
+            $direction = 'desc';
+        }
+
+        return [
+            'search'    => $search,
+            'page'      => $page,
+            'sort'      => $sort,
+            'direction' => $direction,
+        ];
     }
 
     // Kiểm tra lý do hủy đơn
@@ -383,11 +360,11 @@ class LeaveController extends Controller
             return __('messages.cancel_reason_encoding');
         }
 
-        if (! preg_match('/[^\s\p{Z}]/u', $reason)) {
+        if (mb_trim($reason) === '') {
             return __('messages.cancel_reason_required');
         }
 
-        if (strlen($reason) > LeaveConstants::CANCEL_REASON_MAX_BYTES) {
+        if (strlen($reason) > AppConstants::CANCEL_REASON_MAX_BYTES) {
             return __('messages.cancel_reason_too_long');
         }
 

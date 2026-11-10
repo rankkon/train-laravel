@@ -18,87 +18,128 @@
 
     <main class="leave-list">
         <div class="leave-list-toolbar">
-            <form method="get" action="{{ route('users.index') }}" class="leave-search user-search">
+            {{-- Tìm kiếm theo mã hoặc tên và lọc tài khoản hoạt động, đã khóa hoặc tất cả. --}}
+            <form method="get" action="{{ route('users.index') }}" id="user-search-form" class="leave-search user-search">
+                @if ($sortColumn !== '')
+                    <input type="hidden" name="sort" value="{{ $sortColumn }}">
+                    <input type="hidden" name="direction" value="{{ $sortDirection }}">
+                @endif
                 <label for="user-search">Mã/Tên user</label>
                 <input type="text" id="user-search" name="q" value="{{ $search }}">
-                <button type="submit" name="status" value="{{ $statusFilter }}" class="leave-search-button">Tìm kiếm</button>
-                <div class="user-status-filters">
-                    <button type="submit" name="status" value="{{ $activeStatusValue }}"
-                        class="user-status-filter{{ $statusFilter === '1' ? ' user-status-filter-selected' : '' }}">Đang hoạt động</button>
-                    <button type="submit" name="status" value="{{ $lockedStatusValue }}"
-                        class="user-status-filter{{ $statusFilter === '0' ? ' user-status-filter-selected' : '' }}">Đã khóa</button>
-                </div>
+                <select id="user-status" name="status" class="user-status-filter" aria-label="Trạng thái người dùng">
+                    <option value="1" @selected($statusFilter === '1')>Đang hoạt động</option>
+                    <option value="0" @selected($statusFilter === '0')>Đã khóa</option>
+                    <option value="" @selected($statusFilter === '')>Tất cả</option>
+                </select>
             </form>
-            @if ($showUserListActions)
-                <div class="user-list-actions">
+            <div class="leave-list-actions user-list-actions">
+                <button type="submit" form="user-search-form" class="leave-search-button">Tìm kiếm</button>
+                @if ($showUserListActions)
                     @can('create', \App\Models\User::class)
                         <a href="{{ route('users.create') }}" class="leave-add">Thêm mới</a>
                     @endcan
+                    {{-- Form khóa nhiều nhận các checkbox được liên kết bằng thuộc tính form ở từng dòng. --}}
                     <form method="post" action="{{ $actionUrl }}" id="user-bulk-form">
-                        <button name="action" value="open_bulk_lock" class="leave-add leave-cancel">Khóa nhiều</button>
+                        <button name="action" value="open_bulk_lock" class="leave-add leave-cancel"
+                            @if (! $users->contains(fn ($user) => $userActions[$user->id] && in_array($user->id, $selectedUserIds, true))) disabled @endif>Khóa nhiều</button>
                     </form>
-                </div>
-            @endif
+                @endif
+            </div>
         </div>
 
+        {{-- Khung bảng dùng chung cách cuộn ngang và dọc với danh sách đơn. --}}
         <div class="leave-table-container">
-            <table class="leave-table user-table">
-                <thead>
-                    <tr>
-                        <th scope="col"><input type="checkbox" id="select-all-users"></th>
-                        <th scope="col">Mã người dùng</th>
-                        <th scope="col">Tên người dùng</th>
-                        <th scope="col">Ngày lập</th>
-                        <th scope="col">Trạng thái</th>
-                        <th scope="col">Hành động</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($users as $user)
+            <div class="leave-table-scroll">
+                <table class="leave-table user-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <input type="checkbox" name="user_ids[]" value="{{ $user->id }}" form="user-bulk-form"
-                                    @if (! $userActions[$user->id]) disabled @endif
-                                    @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
-                            </td>
-                            <td>{{ str_pad((string) $user->id, \App\Constants\UserConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
-                            <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
-                            <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
-                            <td>{{ $userStatuses[$user->status] }}</td>
-                            <td>
-                                @if ($userActions[$user->id])
-                                    <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
-                                        <input type="hidden" name="user_id" value="{{ $user->id }}">
-                                        <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
-                                        @if ($user->status === \App\Models\User::STATUS_ACTIVE)
-                                            <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa">
-                                                <svg class="user-status-icon" viewBox="0 0 24 24">
-                                                    <rect x="4" y="11" width="16" height="10" rx="2"></rect>
-                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                                </svg>
-                                            </button>
-                                        @else
-                                            <button type="submit" name="action" value="open_unlock" class="user-activate" title="Mở khóa">
-                                                <svg class="user-status-icon" viewBox="0 0 24 24">
-                                                    <rect x="4" y="11" width="16" height="10" rx="2"></rect>
-                                                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                                                </svg>
-                                            </button>
-                                        @endif
-                                    </form>
-                                @endif
-                            </td>
+                            <th scope="col"><input type="checkbox" id="select-all-users"></th>
+                            @foreach ([
+                                'id'         => 'Mã người dùng',
+                                'full_name'  => 'Tên người dùng',
+                                'created_at' => 'Ngày lập',
+                                'status'     => 'Trạng thái',
+                            ] as $column => $label)
+                                @php
+                                    $isSorted       = $sortColumn === $column;
+                                    $nextDirection  = 'asc';
+                                    $sortIcon       = '↕';
+                                    $ariaSort       = 'none';
+                                    $sortParameters = ['q' => $search, 'status' => $statusFilter];
+                                    $sortAction     = 'trở về thứ tự mặc định';
+                                    if ($isSorted) {
+                                        $nextDirection = $sortDirection === 'asc' ? 'desc' : '';
+                                        $sortIcon      = $sortDirection === 'asc' ? '↑' : '↓';
+                                        $ariaSort      = $sortDirection === 'asc' ? 'ascending' : 'descending';
+                                    }
+                                    if ($nextDirection !== '') {
+                                        $sortParameters['sort']      = $column;
+                                        $sortParameters['direction'] = $nextDirection;
+                                        $sortAction                  = $nextDirection === 'asc' ? 'sắp xếp tăng dần' : 'sắp xếp giảm dần';
+                                    }
+                                @endphp
+                                <th scope="col" aria-sort="{{ $ariaSort }}">
+                                    <a href="{{ route('users.index', $sortParameters) }}"
+                                        class="user-sort-link{{ $isSorted ? ' user-sort-active' : '' }}"
+                                        aria-label="{{ $label }}: {{ $sortAction }}">
+                                        <span>{{ $label }}</span>
+                                        <span class="user-sort-icon" aria-hidden="true">{{ $sortIcon }}</span>
+                                    </a>
+                                </th>
+                            @endforeach
+                            <th scope="col">Hành động</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="6">{{ __('messages.no_users_found') }}</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {{-- Chỉ hiển thị thao tác trên những tài khoản mà người xem có quyền quản lý. --}}
+                        @forelse ($users as $user)
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="user_ids[]" value="{{ $user->id }}" form="user-bulk-form"
+                                        @if (! $userActions[$user->id]) disabled @endif
+                                        @if ($userActions[$user->id] && in_array($user->id, $selectedUserIds, true)) checked @endif>
+                                </td>
+                                <td>{{ str_pad((string) $user->id, \App\Constants\AppConstants::USER_CODE_LENGTH, '0', STR_PAD_LEFT) }}</td>
+                                <td title="{{ $user->full_name }}">{{ $user->full_name }}</td>
+                                <td>{{ substr((string) $user->getRawOriginal('created_at'), 0, 10) }}</td>
+                                <td>{{ $userStatuses[$user->status] }}</td>
+                                <td>
+                                    @if ($userActions[$user->id])
+                                        <form method="post" action="{{ $actionUrl }}" class="user-row-actions">
+                                            <input type="hidden" name="user_id" value="{{ $user->id }}">
+                                            <a href="{{ route('users.edit', ['user' => $user->id]) }}" class="user-edit" title="Sửa">✎</a>
+                                            @if ($user->status === \App\Constants\AppConstants::STATUS_ACTIVE)
+                                                <button type="submit" name="action" value="open_lock" class="user-cancel" title="Khóa"
+                                                    @if (! in_array($user->id, $selectedUserIds, true)) disabled @endif>
+                                                    <svg class="user-status-icon" viewBox="0 0 24 24">
+                                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                    </svg>
+                                                </button>
+                                            @else
+                                                <button type="submit" name="action" value="open_unlock" class="user-activate" title="Mở khóa">
+                                                    <svg class="user-status-icon" viewBox="0 0 24 24">
+                                                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6">{{ __('messages.no_users_found') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         {{ $users->links('pagination') }}
     </main>
 
+    {{-- Popup dùng chung cho khóa, mở khóa và khóa nhiều; xác nhận mới thực hiện thay đổi trạng thái. --}}
     @if ($statusPopup !== '')
         <div class="popup-overlay">
             <form method="post" action="{{ $actionUrl }}" class="popup-dialog">
@@ -111,20 +152,64 @@
                 </header>
                 <p class="popup-message">{{ $statusMessage }}</p>
                 <div class="popup-actions">
-                    <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm">Đồng ý</button>
-                    <button name="action" value="{{ $statusCloseAction }}" class="popup-button popup-cancel" autofocus>Không</button>
+                    <button name="action" value="confirm_{{ $statusPopup }}" class="popup-button popup-confirm" autofocus>Đồng ý</button>
+                    <button name="action" value="{{ $statusCloseAction }}" class="popup-button popup-cancel">Không</button>
                 </div>
             </form>
         </div>
     @endif
     <script>
-        const selectAllUsers = document.getElementById('select-all-users');
-        const userCheckboxes = document.querySelectorAll('.user-table tbody input[type="checkbox"]:not(:disabled)'); // Chỉ lấy các checkbox không bị disabled
+        if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('sort') || url.searchParams.has('direction')) {
+                url.searchParams.delete('sort');
+                url.searchParams.delete('direction');
+                url.searchParams.delete('page');
+                window.location.replace(url.href);
+            }
+        }
 
-        selectAllUsers.addEventListener('change', function () { // Chọn hoặc bỏ chọn tất cả các checkbox khi checkbox đầu bảng thay đổi
+        const selectAllUsers = document.getElementById('select-all-users');
+        const userCheckboxes = [...document.querySelectorAll('.user-table tbody input[name="user_ids[]"]:not(:disabled)')]; // Chỉ lấy checkbox của các tài khoản được phép thao tác.
+        const bulkLockButton = document.querySelector('#user-bulk-form button[value="open_bulk_lock"]');
+
+        // Đồng bộ nút khóa từng dòng, nút khóa nhiều và trạng thái chọn tất cả.
+        function updateUserSelection() {
+            let selectedCount = 0;
+            for (const checkbox of userCheckboxes) {
+                if (checkbox.checked) {
+                    selectedCount++;
+                }
+                const lockButton = checkbox.closest('tr').querySelector('button[value="open_lock"]');
+                if (lockButton) {
+                    lockButton.disabled = !checkbox.checked; // Nút khóa chỉ bật khi checkbox cùng dòng được chọn.
+                }
+            }
+            if (bulkLockButton) {
+                bulkLockButton.disabled = selectedCount === 0; // Khóa nhiều chỉ bật khi có ít nhất một checkbox được chọn.
+            }
+            selectAllUsers.disabled      = userCheckboxes.length === 0;
+            selectAllUsers.checked       = selectedCount > 0 && selectedCount === userCheckboxes.length;
+            selectAllUsers.indeterminate = selectedCount > 0 && selectedCount < userCheckboxes.length; // Hiển thị trạng thái chọn một phần nếu chưa chọn hết các dòng.
+        }
+
+        // Chọn hoặc bỏ chọn toàn bộ checkbox được phép thao tác.
+        selectAllUsers.addEventListener('change', function () {
             for (const checkbox of userCheckboxes) {
                 checkbox.checked = selectAllUsers.checked;
             }
+            updateUserSelection();
+        });
+
+        for (const checkbox of userCheckboxes) {
+            checkbox.addEventListener('change', updateUserSelection);
+        }
+        window.addEventListener('pageshow', updateUserSelection); // Đồng bộ lại khi trình duyệt khôi phục trang từ bộ nhớ.
+        updateUserSelection();
+
+        // Gửi lại bộ lọc bằng GET ngay khi thay đổi lựa chọn trạng thái.
+        document.getElementById('user-status').addEventListener('change', function () {
+            this.form.requestSubmit();
         });
     </script>
 </body>

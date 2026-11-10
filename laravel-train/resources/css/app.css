@@ -1,8 +1,9 @@
-@import 'tailwindcss';
+@import 'tailwindcss'; /* Nạp Tailwind cho các tài nguyên được biên dịch qua Vite. */
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php'; /* Quét class trong view phân trang của Laravel. */
+@source '../../storage/framework/views/*.php'; /* Quét class trong các Blade view đã được biên dịch. */
 
+/* Khai báo font mặc định cho theme Tailwind, các trang nghiệp vụ hiện dẫn CSS từ public. */
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
