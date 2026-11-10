@@ -8,6 +8,7 @@
     <p>Xin chào {{ $approverName }},</p>
     <p>{{ __('messages.leave_created_mail_intro', ['name' => $creatorName]) }}</p>
 
+    {{-- Thông tin đơn mới gửi cho người duyệt; mã loại đơn đã được chuyển thành tên hiển thị. --}}
     <table>
         <tr><th align="left">Mã đơn:</th><td>{{ $leaveId }}</td></tr>
         <tr><th align="left">Người tạo:</th><td>{{ $creatorName }}</td></tr>
@@ -17,6 +18,7 @@
         <tr><th align="left">Ngày kết thúc:</th><td>{{ $values['end_date'] }}</td></tr>
     </table>
 
+    {{-- Chỉ hiển thị nội dung khi người tạo có nhập và giữ nguyên xuống dòng. --}}
     @if ($values['content'] !== '')
         <p>Nội dung:</p>
         <p style="white-space: pre-wrap;">{{ $values['content'] }}</p>

@@ -17,6 +17,7 @@
 
     <main class="leave-list">
         <div class="leave-list-toolbar">
+            {{-- Tìm kiếm gửi GET để giữ từ khóa trên URL và trong các liên kết phân trang. --}}
             <form method="get" action="{{ route('leaves.index') }}" id="leave-search-form" class="leave-search">
                 <label for="leave-search">Tên user/Loại đơn/Nội dung</label>
                 <input type="text" id="leave-search" name="q" value="{{ $search }}">
@@ -27,6 +28,7 @@
             </div>
         </div>
 
+        {{-- Khung ngoài cuộn ngang, khung trong cuộn dọc và ẩn thanh cuộn bên phải. --}}
         <div class="leave-table-container">
             <div class="leave-table-scroll">
                 <table class="leave-table leave-management-table">
@@ -44,12 +46,13 @@
                     </thead>
                     <tbody>
                         @forelse ($leaves as $leave)
+                            {{-- Tính quyền theo từng đơn để chỉ hiển thị các nút xử lý phù hợp. --}}
                             @php
                                 $canProcess = auth()->user()->can('process', $leave);
                                 $canEdit    = auth()->user()->can('update', $leave);
                             @endphp
                             <tr class="leave-row leave-status-{{ $leave->status }}">
-                                <td>{{ $leaves->firstItem() + $loop->index }}</td>
+                                <td>{{ $leaves->firstItem() + $loop->index }}</td> {{-- STT liên tục giữa các trang. --}}
                                 <td>{{ $leave->full_name }}</td>
                                 <td>{{ $leaveTypes[$leave->leave_type] }}</td>
                                 <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
@@ -86,6 +89,7 @@
         {{ $leaves->links('pagination') }}
     </main>
 
+    {{-- Popup duyệt chỉ gửi xác nhận, quyền và trạng thái vẫn được kiểm tra lại khi thực hiện. --}}
     @if ($processPopup === 'approve')
         <div class="popup-overlay">
             <form method="post" action="{{ $actionUrl }}" class="popup-dialog">
@@ -103,6 +107,7 @@
         </div>
     @endif
 
+    {{-- Popup hủy giữ lý do đã nhập và hiển thị lỗi do server trả về. --}}
     @if ($processPopup === 'cancel')
         <div class="popup-overlay">
             <form method="post" action="{{ $actionUrl }}" class="popup-dialog leave-cancel-dialog" novalidate>

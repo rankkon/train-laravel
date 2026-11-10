@@ -21,9 +21,9 @@ class DashboardController extends Controller
             $requestedPage = 1;
         }
         $page   = min($requestedPage, $lastPage); // trang thực tế sẽ hiển thị, không vượt quá trang cuối cùng
-        $leaves = $query->orderBy('leave.status')
+        $leaves = $query->orderBy('leave.status') // Sắp xếp theo đơn mới, đã duyệt, đã hủy
             ->orderByDesc('leave.created_at') // Sắp xếp theo ngày tạo giảm dần
-            ->orderByDesc('leave.id') // Sắp xếp theo ID giảm dần khi trùng ngày tạo
+            ->orderByDesc('leave.id') // Sắp xếp theo ID giảm dần
             ->paginate($perPage, [
                 'leave.id', 'leave.leave_type', 'leave.created_at', 'leave.status',
                 'leave.end_date', 'leave.title', 'users.full_name',
@@ -31,7 +31,7 @@ class DashboardController extends Controller
             ->withPath(route('dashboard'))
             ->appends(['q' => '']);
 
-        return view('dashboard', [
+        return view('dashboard', [ // Truyền danh sách đơn và danh mục hiển thị sang giao diện
             'leaves'        => $leaves,
             'leaveTypes'    => AppConstants::LEAVE_TYPES,
             'leaveStatuses' => AppConstants::LEAVE_STATUSES,

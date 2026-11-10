@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{{-- Trang chào mẫu của Laravel, hiện không được các route nghiệp vụ gọi trực tiếp. --}}
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">

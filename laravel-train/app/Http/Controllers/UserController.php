@@ -41,7 +41,7 @@ class UserController extends Controller
 
         $query = User::query();
         if ($request->isMethod('post') && is_array($request->post('original_values'))) {
-            $query->select(['id', 'username', 'user_type', 'department', 'status']);
+            $query->select(['id', 'username', 'user_type', 'department', 'status']); // Đọc lại các cột cần kiểm tra quyền và trạng thái
         }
         $editedUser = $query->findOrFail($editedUserId); // Lấy tài khoản sửa và kiểm tra quyền
         Gate::authorize('manage', $editedUser);
@@ -52,14 +52,14 @@ class UserController extends Controller
     // Xử lý các bước nhập, xác nhận, rời form và lưu user
     private function form(Request $request, UserService $userService, ?User $editedUser = null): View|RedirectResponse
     {
-        $editedUserId   = $editedUser?->id ?? 0;
-        $isAdminAccount = $editedUser !== null && $editedUser->user_type === AppConstants::TYPE_ADMIN;
+        $editedUserId   = $editedUser?->id ?? 0; // ID tài khoản đang sửa (= 0 khi tạo mới)
+        $isAdminAccount = $editedUser !== null && $editedUser->user_type === AppConstants::TYPE_ADMIN; // Tài khoản đang sửa là Admin hay không
         $viewer         = $request->user();
         // Lấy danh mục theo quyền hiện tại để hiển thị và kiểm tra dữ liệu form
         $options            = $userService->formOptions($viewer, $editedUser);
         $newUserTypes       = $options['user_types'];
         $newUserDepartments = $options['departments'];
-        // Khởi tạo giá trị mặc định cho form thêm mới người dùng
+        // Giá trị mặc định cho form thêm mới người dùng
         $clearValues = [
             'username'   => $editedUser?->username ?? '',
             'full_name'  => '',
@@ -71,7 +71,7 @@ class UserController extends Controller
         ];
         $values        = $clearValues;
         $errors        = [];
-        $showSavePopup = false;
+        $showSavePopup = false; // Popup xác nhận lưu
         if ($editedUser !== null) {
             foreach (array_keys($values) as $field) { // Nạp các trường dữ liệu trừ mật khẩu
                 if ($field !== 'password') {
@@ -80,14 +80,14 @@ class UserController extends Controller
             }
         }
 
-        $originalValues             = $this->originalFormValues($request, $values);
+        $originalValues             = $this->originalFormValues($request, $values); // Dữ liệu lúc mở form (Dùng để khôi phục, so sánh thay đổi)
         $originalValues['password'] = '';
-        $values                     = $originalValues;
-        $showExitPopup              = false;
-        $showClearPopup             = false;
-        $exitDestination            = '';
+        $values                     = $originalValues; // Dữ liệu hiện tại được điền trên giao diện
+        $showExitPopup              = false; // Popup xác nhận rời trang
+        $showClearPopup             = false; // Popup xác nhận xóa trống
+        $exitDestination            = ''; // Trang sẽ chuyển đến sau khi xác nhận
         $exitMessage                = __('messages.confirm_exit');
-        $exitActions                = [
+        $exitActions                = [ // Các thao tác trên sidebar
             'exit_dashboard' => 'dashboard',
             'exit_users'     => 'users.index',
             'exit_list'      => 'leaves.index',
@@ -97,6 +97,13 @@ class UserController extends Controller
         if ($request->isMethod('post')) { // Đọc thao tác gửi từ form
             $action         = $request->post('action', 'validate');
             $allowedActions = array_merge(['validate', 'save', 'clear', 'confirm_clear', 'confirm_exit'], array_keys($exitActions));
+            // Các thao tác của form: 
+            //Validate: kiểm tra dữ liệu trước khi mở popup xác nhận
+            // save: xác nhận lưu, kiểm tra lại dư liệu và ghi database
+            // clear: kiểm tra thay đổi trước khi mở popup xác nhận xóa trống
+            // Confirm_clear: Xác nhận bỏ dữ liệu đang nhập và khôi phục giá trị ban đầu
+            // exist_*: Kiểm tra thay đổi trước khi chuyển trang hoặc đăng xuất
+            // Confirm_exit: Xác nhận bỏ thay đổi và chuyển đến trang được phép
             abort_unless(is_string($action) && in_array($action, $allowedActions, true), 400);
             if ($action === 'confirm_exit') {
                 $exitDestination = $request->post('exit_destination');
@@ -104,7 +111,7 @@ class UserController extends Controller
 
                 return redirect()->route($exitDestination, status: 303);
             } elseif ($action === 'confirm_clear') {
-                $values = $editedUser === null ? $clearValues : $originalValues;
+                $values = $editedUser === null ? $clearValues : $originalValues; // From thêm mới trờ về mặc định
                 if ($editedUser === null) {
                     $originalValues = $values;
                 }
@@ -115,18 +122,19 @@ class UserController extends Controller
                 if ($action === 'clear') {
                     $showClearPopup = $errors !== [] || $this->formHasChanges($values, $originalValues);
                 } elseif (isset($exitActions[$action])) {
-                    $exitDestination = $exitActions[$action];
-                    $hasChanges      = $errors !== [] || $this->formHasChanges($values, $originalValues);
-                    if ($hasChanges || $exitDestination === 'logout') {
-                        $showExitPopup = true;
+                    $exitDestination = $exitActions[$action]; // Xác định trang đích
+                    $hasChanges      = $errors !== [] || $this->formHasChanges($values, $originalValues); // Kiểm tra dữ liệu có khác lúc mở form không
+                    if ($hasChanges || $exitDestination === 'logout') { // popup hỏi xác nhận trước khi rời trang
+                        $showExitPopup = true; // Đăng xuất luôn cần xác nhận
                         if ($exitDestination === 'logout') {
                             $exitMessage = $hasChanges ? __('messages.confirm_logout_with_changes') : __('messages.confirm_logout');
                         }
                     } else {
-                        return redirect()->route($exitDestination, status: 303);
+                        return redirect()->route($exitDestination, status: 303); // Chuyển trang ngay nếu form không đổi
                     }
                 } else {
                     if ($action === 'save' && $errors === []) {
+                        // Kiểm tra lại tài khoản, quyền và dữ liệu trong transaction
                         try {
                             $saving = $userService->save($viewer->id, $values, $editedUserId);
                         } catch (AuthenticationException) {
@@ -134,20 +142,22 @@ class UserController extends Controller
 
                             return redirect()->route('login', status: 303);
                         }
+                        // Nếu lỗi, form vẫn giữ giá trị để người dùng chỉnh lại
                         $errors             = $saving['errors'];
                         $newUserTypes       = $saving['options']['user_types'];
                         $newUserDepartments = $saving['options']['departments'];
                         if ($errors === []) {
-                            return redirect()->route('users.index', status: 303);
+                            return redirect()->route('users.index', status: 303); // trở về danh sách người dùng nếu lưu thành công
                         }
                     } else {
-                        $errors = $userService->validateFields($values, $newUserTypes, $newUserDepartments, $errors, editedUserId: $editedUserId);
+                        $errors = $userService->validateFields($values, $newUserTypes, $newUserDepartments, $errors, editedUserId: $editedUserId); // Kiểm tra các trường và dữ liệu trùng để trả lỗi trên form
                     }
-                    $showSavePopup = $action === 'validate' && $errors === [];
+                    $showSavePopup = $action === 'validate' && $errors === []; // Chỉ mở popup lưu sau khi validate và không còn lỗi
                 }
             }
         }
 
+        // Dựng lại form bằng dữ liệu hiện tại
         return view('users.form', [
             'formTitle'          => $editedUser === null ? 'Thêm mới người dùng' : 'Sửa người dùng',
             'formAction'         => $editedUser === null ? route('users.create.submit') : route('users.edit.submit', ['user' => $editedUserId]),
@@ -157,7 +167,7 @@ class UserController extends Controller
             'newUserTypes'       => $newUserTypes,
             'newUserDepartments' => $newUserDepartments,
             'maximumBirthDate'   => now()->subDay()->toDateString(),
-            'showSavePopup'      => $showSavePopup,
+            'showSavePopup'      => $showSavePopup, 
             'showExitPopup'      => $showExitPopup,
             'showClearPopup'     => $showClearPopup,
             'exitDestination'    => $exitDestination,
@@ -172,25 +182,25 @@ class UserController extends Controller
     {
         $action  = $request->post('action');
         $session = $request->session();
-        if (! in_array($action, ['confirm_bulk_lock', 'close_bulk_popup'], true)) {
-            $session->forget('user_bulk_lock_ids'); // Chỉ giữ danh sách người dùng được chọn khi đang xác nhận hoặc đóng popup khóa hàng loạt
+        if (! in_array($action, ['confirm_bulk_lock', 'close_bulk_popup'], true)) { // Xóa lựa chọn khóa nhiều khi bắt đầu thao tác khác, giữ lại khi đang xác nhận đóng popup khóa nhiều
+            $session->forget('user_bulk_lock_ids');
         }
-        abort_unless(is_string($action) && in_array($action, [
+        abort_unless(is_string($action) && in_array($action, [ // Chỉ nhận các thao tác khóa, mở khóa và đóng popup
             'open_lock', 'open_unlock', 'confirm_lock', 'confirm_unlock', 'close_popup',
             'open_bulk_lock', 'confirm_bulk_lock', 'close_bulk_popup',
         ], true), 400);
 
-        $filters            = $this->listFilters($request);
+        $filters            = $this->listFilters($request); // Giữ từ khóa, bộ lọc và số trang để sau thao tác vẫn trờ lại đúng danh sách
         $redirectParameters = ['q' => $filters['search'], 'status' => $filters['status'], 'page' => $filters['page']]; // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
-        if ($action === 'close_popup') {
+        if ($action === 'close_popup') { // Đóng popup và tải lại danh sách, không thay đổi trạng thái tài khoản
             return redirect()->route('users.index', $redirectParameters, 303);
         }
 
-        if ($action === 'open_bulk_lock') {
+        if ($action === 'open_bulk_lock') { // Đọc các checkbox được chọn để khóa nhiều
             $selectedUserIds = [];
             $rawIds          = $request->post('user_ids');
             if ($rawIds !== null) {
-                abort_unless(is_array($rawIds), 400);
+                abort_unless(is_array($rawIds), 400); // Danh sách được chọn phải là mảng
                 foreach ($rawIds as $rawId) {
                     $targetUserId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false;
                     abort_if($targetUserId === false || $targetUserId < 1, 400);
@@ -207,6 +217,7 @@ class UserController extends Controller
             return $this->renderList($request->user(), $filters);
         }
 
+        // Khi xác nhận popup, kiểm tra lại quyền tài khoản và khóa cả nhóm trong 1 transaction
         if ($action === 'confirm_bulk_lock' || $action === 'close_bulk_popup') {
             $selectedUserIds = $session->get('user_bulk_lock_ids', []);
             $session->forget('user_bulk_lock_ids');
@@ -229,7 +240,7 @@ class UserController extends Controller
         $targetUserId = is_string($rawId) ? filter_var($rawId, FILTER_VALIDATE_INT) : false;
         abort_if($targetUserId === false || $targetUserId < 1, 400);
 
-        if ($action === 'open_lock' || $action === 'open_unlock') {
+        if ($action === 'open_lock' || $action === 'open_unlock') { // Kiểm tra tài khoản tồn tại và quyền quản lý trước khi mở popup
             $targetUser = User::query()->findOrFail($targetUserId);
             Gate::authorize('manage', $targetUser);
             $statusPopup = $action === 'open_lock' ? 'lock' : 'unlock';
@@ -238,14 +249,14 @@ class UserController extends Controller
         }
 
         try {
-            $userService->changeStatus($request->user()->id, [$targetUserId], $action === 'confirm_lock');
+            $userService->changeStatus($request->user()->id, [$targetUserId], $action === 'confirm_lock'); // Xác nhận thao tác confirm_lock, true để khóa, flase để mở khóa
         } catch (AuthenticationException) {
             Auth::logout();
 
             return redirect()->route('login', status: 303);
         }
 
-        return redirect()->route('users.index', $redirectParameters, 303);
+        return redirect()->route('users.index', $redirectParameters, 303); // Tải lại danh sách với các bộ lọc trước đó
     }
 
     // Đọc và chuẩn hóa từ khóa, trạng thái lọc và trang được yêu cầu
@@ -269,7 +280,7 @@ class UserController extends Controller
         $search        = $filters['search'];
         $statusFilter  = $filters['status'];
         $requestedPage = $filters['page'];
-        $query         = User::query()->visibleTo($viewer)->matching($search);
+        $query         = User::query()->visibleTo($viewer)->matching($search); // Áp dụng phạm vi được xem và từ khóa trước khi đếm, lọc và phân trang
         if ($statusFilter !== '') {
             $query->where('status', (int) $statusFilter);
         }
@@ -283,13 +294,13 @@ class UserController extends Controller
             ->withPath(route('users.index'))
             ->appends(['q' => $search, 'status' => $statusFilter]); // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
 
-        $showUserListActions = in_array($viewer->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true);
+        $showUserListActions = in_array($viewer->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true); // Admin và manager được hiển thị nhóm nút thao tác quản lý
         $userActions         = [];
         foreach ($users as $user) { // Xác định quyền hiển thị nút thao tác trên từng người dùng trong danh sách
             $userActions[$user->id] = Gate::forUser($viewer)->allows('manage', $user);
         }
 
-        $statusMessage = '';
+        $statusMessage = ''; // Chọn thông báo theo loại popup
         if ($statusPopup === 'lock') {
             $statusMessage = __('messages.confirm_user_lock');
         } elseif ($statusPopup === 'unlock') {

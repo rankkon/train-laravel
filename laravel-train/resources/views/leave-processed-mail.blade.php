@@ -8,6 +8,7 @@
     <p>Xin chào {{ $creatorName }},</p>
     <p>{{ $mailIntro }}</p>
 
+    {{-- Thông tin đơn và thời gian xử lý gửi cho người tạo sau khi duyệt hoặc hủy. --}}
     <table>
         <tr><th align="left">Mã đơn:</th><td>{{ $leaveId }}</td></tr>
         <tr><th align="left">Người tạo:</th><td>{{ $creatorName }}</td></tr>
@@ -23,6 +24,7 @@
         <p style="white-space: pre-wrap;">{{ $values['content'] }}</p>
     @endif
 
+    {{-- Chỉ hiển thị lý do hủy đối với kết quả không được duyệt. --}}
     @if (! $isApproved)
         <p>Lý do hủy:</p>
         <p style="white-space: pre-wrap;">{{ $values['cancel_reason'] }}</p>

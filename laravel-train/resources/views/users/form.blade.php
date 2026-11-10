@@ -18,15 +18,17 @@
     <main class="user-create">
         <h1 class="user-form-title">{{ $formTitle }}</h1>
 
+        {{-- Form dùng chung cho thêm và sửa người dùng; các thao tác được xử lý bằng POST. --}}
         <form method="post" action="{{ $formAction }}" id="user-form" class="user-form" novalidate>
+            {{-- Gửi dữ liệu gốc qua hidden input để so sánh và phục hồi form mà không lưu session. --}}
             @foreach ($originalValues as $field => $value)
                 <input type="hidden" name="original_values[{{ $field }}]" value="{{ $value }}">
             @endforeach
-            <input type="hidden" name="exit_destination" value="{{ $exitDestination }}">
+            <input type="hidden" name="exit_destination" value="{{ $exitDestination }}"> {{-- Chỉ phục vụ bước xác nhận chuyển trang, controller kiểm tra lại route đích. --}}
             <div class="user-form-fields">
                 <p class="user-field-error" data-form-error="form" hidden></p>
                 <div class="user-form-field">
-                    <label for="username">Tên đăng nhập <span class="required-marker">*</span></label>
+                    <label for="username">Tên đăng nhập <span class="required-marker">*</span></label> {{-- Username không được thay đổi khi sửa; service vẫn kiểm tra trên server. --}}
                     <input type="text" id="username" name="username" value="{{ $values['username'] }}" required
                         @if ($editedUserId > 0) disabled @endif
                         @if (isset($errors['username'])) class="user-input-error" @endif>
@@ -48,6 +50,7 @@
                             Mật khẩu <span class="required-marker">*</span>
                         @endif
                     </label>
+                    {{-- Khi sửa, đây là mật khẩu mới; để trống sẽ giữ mật khẩu hiện có. --}}
                     <div class="password-control">
                         <input type="password" id="password" name="password" value="{{ $values['password'] }}"
                             @if ($editedUserId === 0) required @endif
@@ -99,12 +102,13 @@
                 </div>
             </div>
 
+            {{-- Lưu gửi bước kiểm tra dữ liệu; Xóa trống kiểm tra thay đổi rồi mới mở popup. --}}
             <div class="user-form-actions">
                 <button type="submit" name="action" value="validate" class="user-form-next">Lưu</button>
                 <button type="submit" name="action" value="clear" class="user-form-clear">Xóa trống</button>
             </div>
         </form>
     </main>
-    @include('form-popups', ['formId' => 'user-form'])
+    @include('form-popups', ['formId' => 'user-form']) {{-- Dùng chung popup lưu, xóa trống và rời trang. --}}
 </body>
 </html>

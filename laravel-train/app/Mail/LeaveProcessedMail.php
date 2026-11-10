@@ -35,7 +35,7 @@ class LeaveProcessedMail extends Mailable implements ShouldQueue
         );
     }
 
-    // Chuẩn bị nội dung hiện thị theo kết quả xử lý đơn
+    // Chọn view email kết quả và chuẩn bị nội dung hiện thị
     public function content(): Content
     {
         $isApproved = $this->values['status'] === AppConstants::STATUS_APPROVED;

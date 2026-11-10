@@ -20,7 +20,7 @@ class LeaveRequest extends Model
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        $query->join('users', 'users.id', '=', 'leave.user_id');
+        $query->join('users', 'users.id', '=', 'leave.user_id'); // Lấy phòng ban theo người tạo và loại đơn không còn tài khoản người tạo.
 
         if ($user->user_type !== AppConstants::TYPE_ADMIN) {
             $query->where('users.department', $user->department);
@@ -37,10 +37,12 @@ class LeaveRequest extends Model
 
         $pattern    = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%'; // Thoát các ký tự đặc biệt để ký tự nhập vào được tìm kiếm như ký tự bình thường
         $comparison = "REGEXP_REPLACE(%s, ?, '') COLLATE utf8mb4_unicode_520_ci LIKE REGEXP_REPLACE(?, ?, '') ESCAPE '!'";
+        // Gom các điều kiện để không làm thay đổi phạm vi đơn được xem
         $query->where(function (Builder $matches) use ($pattern, $comparison): void {
             $matches->whereRaw(sprintf($comparison, 'users.full_name'), ['\\p{M}', $pattern, '\\p{M}'])
                 ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}'])
                 ->orWhere('leave.leave_type', 0);
+            // Tìm theo tên loại đơn hiển thị
             foreach (AppConstants::LEAVE_TYPES as $type => $name) {
                 $matches->orWhereRaw('(`leave`.leave_type = ? AND '.sprintf($comparison, 'CAST(? AS CHAR)').')', [
                     $type, $name, '\\p{M}', $pattern, '\\p{M}',

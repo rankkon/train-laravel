@@ -7,14 +7,14 @@ use App\Models\User;
 
 class UserPolicy
 {
-    // Xác thực quyền tạo người dùng
+    // Chỉ Manager và Admin đang hoạt động được tạo người dùng
     public function create(User $user): bool
     {
         return $user->status === AppConstants::STATUS_ACTIVE
             && in_array($user->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true); // Chỉ Manager và Admin đang hoạt động được thêm người dùng mới
     }
 
-    // Xác thực quyền quản lý người dùng
+    // Admin quản lý mọi tài khoản; Manager chỉ quản lý User cùng phòng ban
     public function manage(User $user, User $targetUser): bool
     {
         if ($user->status !== AppConstants::STATUS_ACTIVE) {

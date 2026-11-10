@@ -17,6 +17,7 @@
         <main class="login-container">
             <h1 class="login-title">Sanshin IT Solution</h1>
 
+            {{-- Form gửi POST và hiển thị lỗi do server trả về; không điền lại mật khẩu sau lần đăng nhập lỗi. --}}
             <form method="post" action="{{ route('login.submit') }}" novalidate>
                 <div class="login-field login-username">
                     <label for="username">Tên đăng nhập</label>
@@ -30,7 +31,7 @@
                         placeholder=" "
                         required
                     >
-                    <span class="login-placeholder">Tên đăng nhập</span>
+                    <span class="login-placeholder">Tên đăng nhập</span> {{-- Placeholder được CSS ẩn khi ô nhập có dữ liệu. --}}
                 </div>
 
                 <div class="login-field login-password">
@@ -46,7 +47,7 @@
                         required
                     >
                     <span class="login-placeholder">Mật khẩu</span>
-                    @include('password-toggle')
+                    @include('password-toggle') {{-- Dùng chung nút ẩn/hiện mật khẩu, không gửi form. --}}
                 </div>
 
                 <div class="login-actions">
@@ -58,6 +59,7 @@
                     </button>
                 </div>
 
+                {{-- Hiển thị thông báo khi thiếu dữ liệu, sai thông tin đăng nhập hoặc tài khoản bị khóa. --}}
                 @if ($usernameError || $passwordError)
                     <p class="login-error">{{ $loginErrorMessage }}</p>
                 @endif

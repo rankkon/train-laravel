@@ -25,6 +25,7 @@ class User extends Authenticatable
     #[Scope]
     protected function visibleTo(Builder $query, User $viewer): void
     {
+        // Admin xem toàn bộ; tài khoản khác chỉ xem người dùng cùng phòng ban.
         if ($viewer->user_type !== AppConstants::TYPE_ADMIN) {
             $query->where('department', $viewer->department);
         }
@@ -41,7 +42,9 @@ class User extends Authenticatable
         $pattern          = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%'; // Thoát các ký tự đặc biệt trong chuỗi tìm kiếm để tìm đúng ký tự nhập vào
         $codeLength       = AppConstants::USER_CODE_LENGTH;
         $paddingThreshold = 10 ** ($codeLength - 1); // Xác định ngưỡng ID để đệm số 0 theo độ dài mã người dùng
+        // Gom các điều kiện OR để tìm kiếm không vượt phạm vi phòng ban đã lọc.
         $query->where(function (Builder $matches) use ($pattern, $codeLength, $paddingThreshold): void {
+            // Tạo mã hiển thị từ ID
             $matches->whereRaw("CASE WHEN id < ? THEN LPAD(id, ?, '0') ELSE CAST(id AS CHAR) END LIKE ? ESCAPE '!'", [
                 $paddingThreshold, $codeLength, $pattern,
             ])->orWhereRaw("full_name LIKE ? ESCAPE '!'", [$pattern]);
@@ -64,8 +67,9 @@ class User extends Authenticatable
     // Lấy người duyệt phù hợp với tài khoản hiện tại
     public function leaveApprovers(): Collection
     {
-        $query = self::query()->where('status', AppConstants::STATUS_ACTIVE);
+        $query = self::query()->where('status', AppConstants::STATUS_ACTIVE); // Chỉ lấy người duyệt có tài khoản đang hoạt động.
 
+        // User chọn Manager cùng phòng ban, Manager chọn Admin, Admin chọn chính mình để duyệt đơn
         if ($this->user_type === AppConstants::TYPE_USER) {
             $query->where('user_type', AppConstants::TYPE_MANAGER)
                 ->where('department', $this->department);

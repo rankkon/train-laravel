@@ -41,11 +41,11 @@ class AuthController extends Controller
     public function login(Request $request): View|RedirectResponse
     {
         if ($request->input('action') === 'clear') {
-            return redirect()->route('login', status: 303); // Đưa form về trạng thái mặc định
+            return redirect()->route('login', status: 303); // Mở lại form đăng nhập mặc định
         }
 
         $username = $request->input('username');
-        if (! is_string($username)) {
+        if (! is_string($username)) { // Chỉ nhận chuỗi
             $username = '';
         }
         $trimmedUsername = trim($username);
@@ -53,7 +53,7 @@ class AuthController extends Controller
             $username = '';
         }
         $password = $request->input('password');
-        if (! is_string($password)) {
+        if (! is_string($password)) { // Chỉ nhận chuỗi
             $password = '';
         }
 

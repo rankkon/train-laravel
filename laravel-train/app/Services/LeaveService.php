@@ -24,25 +24,27 @@ use Throwable;
 
 class LeaveService
 {
-    private string $uploadDirectory;
+    private string $uploadDirectory; // Thư mục lưu file đính kèm
 
+    // Thiết lập thư mục lưu file
     public function __construct(?string $uploadDirectory = null)
     {
         $this->uploadDirectory = $uploadDirectory ?? base_path('../../train-php/uploads');
     }
 
-    // Lưu đơn mới và file đính kèm trong transaction
+    // Thêm hoặc cập nhật đơn, kiểm tra lại quyền, dữ liệu và file trong transaction
     public function save(int $userId, array $values, ?array $attachment, int $leaveId = 0): array
     {
-        $fullPath       = null;
+        $fullPath       = null; // Đường dẫn file mới cần dọn nếu thao tác lưu thất bại.
         $leave          = null;
-        $attachmentPath = '';
-        $createdMail    = null;
+        $attachmentPath = ''; // Đường dẫn file
+        $createdMail    = null; // Email đơn mới chỉ được chuẩn bị khi người duyệt có địa chỉ nhận.
         $approverEmail  = '';
 
         try {
             DB::transaction(function () use ($userId, $values, $attachment, $leaveId, &$fullPath, &$leave, &$attachmentPath, &$createdMail, &$approverEmail): void {
                 $ownerId = $userId;
+                // Khóa đơn đang sửa để kiểm tra quyền và cập nhật
                 if ($leaveId > 0) {
                     $leave = LeaveRequest::query()->whereKey($leaveId)->lockForUpdate()->first();
                     abort_if($leave === null, 404);
@@ -62,6 +64,7 @@ class LeaveService
                     Gate::forUser($currentUser)->authorize('update', $leave);
                 }
 
+                // Kiểm tra lại dữ liệu tại thời điểm lưu
                 $errors = $this->validateFields(
                     $values, $currentUser->leaveApprovers(), AppConstants::LEAVE_TYPES,
                     $leaveId === 0 ? now()->toDateString() : '',
@@ -71,6 +74,7 @@ class LeaveService
                 } else {
                     $fileError = $this->validateAttachment($attachment['name'], $attachment['data']);
                 }
+                // Đối chiếu token với file tạm hiện tại để phát hiện file bị mất, hết hạn hoặc thay đổi
                 if ($fileError === '' && isset($attachment['token'])) {
                     $temporary = $this->readTemporaryAttachment($userId, $leaveId, $attachment['token']);
                     if ($temporary === null || $temporary['name'] !== $attachment['name'] || $temporary['data'] !== $attachment['data']) {
@@ -84,7 +88,7 @@ class LeaveService
                     throw ValidationException::withMessages($errors); // Dừng transaction và trả về lỗi nếu có lỗi dữ liệu
                 }
 
-                $reuseAttachment = false;
+                $reuseAttachment = false; // Chỉ dùng lại file đã lưu nếu đường dẫn, tên và nội dung vẫn khớp.
                 if ($leave !== null && isset($attachment['path']) && $attachment['path'] === $leave->attachment_path) {
                     $savedAttachment = $this->readSavedAttachment($leave, $userId);
                     $reuseAttachment = $savedAttachment !== null
@@ -97,6 +101,7 @@ class LeaveService
                     if (! is_dir($this->uploadDirectory)) { // Yêu cầu thư mục upload tồn tại
                         throw new RuntimeException(__('messages.upload_directory_missing'));
                     }
+                    // Tạo tên lưu ngẫu nhiên và ghi đủ nội dung file
                     $extension      = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
                     $filename       = bin2hex(random_bytes(AppConstants::ATTACHMENT_RANDOM_BYTES)).'.'.$extension;
                     $attachmentPath = 'uploads/'.$filename;
@@ -107,6 +112,7 @@ class LeaveService
                     }
                 }
 
+                // Tập hợp các trường được phép cập nhật khi sửa đơn.
                 $changes = [
                     'title'                    => $values['title'],
                     'content'                  => $values['content'],
@@ -147,10 +153,12 @@ class LeaveService
             throw $error;
         }
 
+        // Sau khi lưu thành công, dọn file cũ nếu đơn đã chuyển sang file đính kèm khác
         if ($leave !== null && $leave->attachment_path !== $attachmentPath) {
             $this->removeOldAttachment($leave->attachment_path);
         }
 
+        // Chỉ dọn file tạm sau commit, khi lưu lỗi vẫn giữ file để người dùng thử lại
         if (isset($attachment['token'])) {
             DB::afterCommit(fn () => $this->deleteTemporaryAttachment($userId, $leaveId, $attachment['token']));
         }
@@ -163,14 +171,14 @@ class LeaveService
         return [];
     }
 
-    // Đọc file đính kèm đã lưu từ cơ sở dữ liệu
+    // Đọc nội dung file theo đường dẫn và tên đã lưu trong bản ghi đơn
     public function readSavedAttachment(LeaveRequest $leave, int $userId): ?array
     {
         $fullPath = $this->attachmentFullPath($leave->attachment_path);
         if ($fullPath === null) {
             return null;
         }
-        $data = @file_get_contents($fullPath, false, null, 0, AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024 + 1);
+        $data = @file_get_contents($fullPath, false, null, 0, AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024 + 1); // Giới hạn lượng dữ liệu đọc để phát hiện file quá dung lượng
         if ($data === false) {
             return null;
         }
@@ -192,6 +200,7 @@ class LeaveService
         if ($uploadDirectory === false || $fullPath === false || ! is_file($fullPath)) {
             return null;
         }
+        // Chỉ chấp nhận file thực nằm trong thư mục upload
         if (! str_starts_with($fullPath, $uploadDirectory.DIRECTORY_SEPARATOR)) {
             return null;
         }
@@ -203,6 +212,7 @@ class LeaveService
     private function removeOldAttachment(string $path): void
     {
         try {
+            // Giữ file nếu vẫn còn bản ghi đơn khác sử dụng
             if (LeaveRequest::query()->where('attachment_path', $path)->exists()) {
                 return;
             }
@@ -223,12 +233,14 @@ class LeaveService
 
         try {
             DB::transaction(function () use ($userId, $leaveId, $action, $reason, &$processedMail, &$creatorEmail): void {
+                // Khóa bản ghi đơn trước khi kiểm tra lại trạng thái và quyền xử lý
                 $leave = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->lockForUpdate()
                     ->first();
                 abort_if($leave === null, 404);
 
+                // Đọc và khóa người thao tác, người tạo và người duyệt
                 $users = User::query()
                     ->whereIn('id', [$userId, $leave->user_id, $leave->approver_id])
                     ->orderBy('id')
@@ -243,10 +255,11 @@ class LeaveService
 
                 $owner = $users->get($leave->user_id);
                 abort_if($owner === null, 404);
-                $leave->setRelation('user', $owner);
-                abort_unless(Gate::forUser($currentUser)->allows('process', $leave), 409);
+                $leave->setRelation('user', $owner); // Dùng người tạo vừa được khóa để kiểm tra quyền trên dữ liệu hiện tại
+                abort_unless(Gate::forUser($currentUser)->allows('process', $leave), 409); // Từ chối khi đơn hoặc quyền đã thay đổi sau khi mở popup
 
                 $processedAt = now();
+                // Duyệt ghi ngày duyệt. Hủy ghi thời điểm và lý do hủy
                 if ($action === 'approve') {
                     $changes = [
                         'status'      => AppConstants::STATUS_APPROVED,
@@ -261,6 +274,7 @@ class LeaveService
                     ];
                 }
 
+                // Chỉ cập nhật đơn vẫn còn trạng thái Mới để không xử lý lại đơn đã duyệt hoặc hủy
                 $updated = LeaveRequest::query()
                     ->whereKey($leaveId)
                     ->where('status', AppConstants::STATUS_NEW)
@@ -299,6 +313,7 @@ class LeaveService
     // Đưa mail vào queue sau khi transaction thành công
     private function queueMailAfterCommit(string $recipientEmail, Mailable $mail): void
     {
+        // Lỗi đưa mail vào queue được ghi nhận riêng, không làm thất bại thao tác đã commit
         DB::afterCommit(function () use ($recipientEmail, $mail): void {
             try {
                 Mail::to($recipientEmail)->queue($mail);
@@ -318,7 +333,7 @@ class LeaveService
                 if ($connection->transactionLevel() > 0) {
                     $connection->rollBack();
                 } else {
-                    $pdo->rollBack(); // Rollback trực tiếp qua PDO nếu transaction trả về 0
+                    $pdo->rollBack(); // Rollback qua PDO nếu transaction lỗi
                 }
             }
         } catch (Throwable) {
@@ -359,18 +374,20 @@ class LeaveService
         return ['values' => $values, 'errors' => $errors];
     }
 
+    // Đọc file mới, file tạm hoặc file đã lưu và giữ file hợp lệ trước đó nếu file mới bị lỗi
     public function readAttachment(Request $request, ?LeaveRequest $leave = null): array
     {
         $userId   = $request->user()->id;
         $leaveId  = $leave?->id ?? 0;
-        $rawToken = $request->post('attachment_token', '');
+        $rawToken = $request->post('attachment_token', ''); // Token nhận từ form phải được kiểm tra trước khi dùng để đọc file
         $previous = null;
+        // Ưu tiên file tạm được gửi lại bằng token, nếu không có thì lấy file đã lưu của đơn
         if ($rawToken !== '') {
             $previous = $this->readTemporaryAttachment($userId, $leaveId, $rawToken);
         } elseif ($leave !== null) {
             $previous = $this->readSavedAttachment($leave, $userId);
         }
-        $result = ['attachment' => $previous, 'error' => ''];
+        $result = ['attachment' => $previous, 'error' => '']; // Giữ file trước đó làm phương án sử dụng khi file mới không hợp lệ
         $files  = $request->files->all();
         $file   = $files['attachment'] ?? null;
         if (count($files) > 1 || ($file !== null && ! $file instanceof UploadedFile)) { // Chỉ cho phép 1 file upload
@@ -378,6 +395,7 @@ class LeaveService
 
             return $result;
         }
+        // Khi không có upload mới, kiểm tra lại file đang giữ hoặc yêu cầu người dùng chọn file
         if ($file === null || $file->getError() === UPLOAD_ERR_NO_FILE) {
             if ($result['attachment'] === null) {
                 $result['error'] = $rawToken === '' ? __('messages.attachment_required') : __('messages.attachment_select_again');
@@ -391,6 +409,7 @@ class LeaveService
         $maxSize = AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024;
         $error   = $file->getError();
         $size    = is_file($file->getPathname()) ? $file->getSize() : 0;
+        // Phát hiện lỗi giới hạn upload
         if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true) || $size > $maxSize) {
             $result['error'] = __('messages.attachment_too_large', ['size' => AppConstants::ATTACHMENT_MAX_MB]);
 
@@ -409,10 +428,11 @@ class LeaveService
         }
         $name            = basename(str_replace('\\', '/', $file->getClientOriginalName())); // Chuẩn hóa tên file
         $result['error'] = $this->validateAttachment($name, $data);
+        // Chỉ thay file đang giữ sau khi file mới đã qua kiểm tra và được ghi vào thư mục token riêng
         if ($result['error'] === '') {
             $token     = bin2hex(random_bytes(AppConstants::ATTACHMENT_RANDOM_BYTES));
             $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token;
-            $path      = $directory.'/attachment';
+            $path      = $directory.'/attachment'; // Không dùng tên gốc làm đường dẫn để tránh tên file không hợp lệ
             $disk      = Storage::disk('local');
             if (! $disk->put($path, $data) || ! $disk->put($directory.'/name', $name) || ! @touch($disk->path($path), now()->timestamp)) {
                 $disk->deleteDirectory($directory);
@@ -427,19 +447,20 @@ class LeaveService
         return $result;
     }
 
+    // Đọc file tạm đúng tài khoản, ngữ cảnh đơn và token, từ chối file hết hạn hoặc quá dung lượng
     public function readTemporaryAttachment(int $userId, int $leaveId, mixed $token): ?array
     {
         if (! $this->isTemporaryToken($token)) {
             return null;
         }
 
-        $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token;
+        $directory = AppConstants::ATTACHMENT_TEMP_DIRECTORY.'/'.$userId.'/'.$leaveId.'/'.$token; // File tạo mới có id = 0, file sửa có ID đơn tương ứng.
         $path      = $directory.'/attachment';
         $disk      = Storage::disk('local');
         if (! $disk->exists($path) || ! $disk->exists($directory.'/name')) {
             return null;
         }
-        clearstatcache(true, $disk->path($path));
+        clearstatcache(true, $disk->path($path)); // Lấy lại thông tin file hiện tại trước khi kiểm tra thời gian hết hạn
         if ($disk->lastModified($path) <= now()->timestamp - AppConstants::ATTACHMENT_TEMP_TTL) {
             $this->deleteTemporaryAttachment($userId, $leaveId, $token);
 
@@ -452,6 +473,7 @@ class LeaveService
         return ['user_id' => $userId, 'name' => $disk->get($directory.'/name'), 'data' => $disk->get($path), 'token' => $token];
     }
 
+    // Xóa thư mục token và trả kết quả thành công hoặc thất bại
     public function deleteTemporaryAttachment(int $userId, int $leaveId, mixed $token): bool
     {
         if (! $this->isTemporaryToken($token)) {
@@ -471,10 +493,11 @@ class LeaveService
         return false;
     }
 
+    // Quét, xóa file hết hạn và trả số thư mục đã xóa
     public function deleteExpiredAttachments(): int
     {
         $disk    = Storage::disk('local');
-        $deleted = 0;
+        $deleted = 0; // Chỉ đếm những thư mục file tạm được xóa thành công
         $prefix  = AppConstants::ATTACHMENT_TEMP_DIRECTORY;
         foreach ($disk->allFiles($prefix) as $path) {
             if (! str_starts_with($path, $prefix.'/')) {
@@ -503,6 +526,7 @@ class LeaveService
         return $deleted;
     }
 
+    // Kiểm tra token là chuỗi gồm đúng 32 ký tự hexadecimal viết thường
     private function isTemporaryToken(mixed $token): bool
     {
         return is_string($token)
@@ -527,6 +551,7 @@ class LeaveService
                 $errors[$field] = $message;
             }
         }
+        // Chỉ so sánh thứ tự hai ngày sau khi cả hai đều hợp lệ
         if (! isset($errors['start_date']) && ! isset($errors['end_date'])
             && $values['start_date'] > $values['end_date']) {
             $errors['end_date'] = __('messages.end_date_before_start');
@@ -541,7 +566,7 @@ class LeaveService
         if (! mb_check_encoding($title, 'UTF-8')) {
             return __('messages.leave_title_encoding');
         }
-        if (mb_trim($title) === '') {
+        if (mb_trim($title) === '') { // Chuỗi chỉ có khoảng trắng Unicode cũng được xem là tiêu đề rỗng
             return __('messages.leave_title_required');
         }
         if (mb_strlen($title, 'UTF-8') > AppConstants::TITLE_MAX_LENGTH) {
@@ -557,7 +582,7 @@ class LeaveService
         if (! mb_check_encoding($content, 'UTF-8')) {
             return __('messages.leave_content_encoding');
         }
-        if (strlen($content) > AppConstants::CONTENT_MAX_BYTES) {
+        if (strlen($content) > AppConstants::CONTENT_MAX_BYTES) { // Nội dung được giới hạn theo byte
             return __('messages.leave_content_too_long');
         }
 
@@ -601,14 +626,14 @@ class LeaveService
         if ($value === '') {
             return __('messages.date_required', ['label' => mb_strtolower($label, 'UTF-8')]);
         }
-        $parts = explode('-', $value);
+        $parts = explode('-', $value); // Kiểm tra từng phần của YYYY-MM-DD và ngày thực tế trong lịch
         if (count($parts) !== 3
             || strlen($parts[0]) !== 4 || strlen($parts[1]) !== 2 || strlen($parts[2]) !== 2
             || ! ctype_digit($parts[0]) || ! ctype_digit($parts[1]) || ! ctype_digit($parts[2])
             || ! checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
             return __('messages.date_invalid', ['label' => $label]);
         }
-        if ($minimumDate !== '' && $value < $minimumDate) {
+        if ($minimumDate !== '' && $value < $minimumDate) { // Chuỗi rỗng bỏ giới hạn ngày tối thiểu khi sửa đơn
             return __('messages.date_in_past', ['label' => $label]);
         }
 
@@ -620,7 +645,7 @@ class LeaveService
     {
         if ($name === '' || ! mb_check_encoding($name, 'UTF-8')
             || mb_strlen($name, 'UTF-8') > AppConstants::ATTACHMENT_NAME_MAX_LENGTH) {
-            return __('messages.attachment_name_invalid', ['max' => AppConstants::ATTACHMENT_NAME_MAX_LENGTH]); // Tên phải hợp lệ, không có ký tự điều khiển và không quá giới hạn ký tự
+            return __('messages.attachment_name_invalid', ['max' => AppConstants::ATTACHMENT_NAME_MAX_LENGTH]); // Tên file phải không rỗng và không vượt giới hạn ký tự
         }
         if ($data === '') {
             return __('messages.attachment_empty'); // Từ chối tệp trống

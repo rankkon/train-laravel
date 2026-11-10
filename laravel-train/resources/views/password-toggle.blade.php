@@ -1,3 +1,4 @@
+{{-- Nút mắt dùng chung cho login, thêm và sửa user, không gửi form. --}}
 <button type="button" class="password-toggle" aria-controls="password" aria-label="Hiện mật khẩu" aria-pressed="false" title="Hiện mật khẩu">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false">
         <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
@@ -9,6 +10,7 @@
     const passwordInput = document.getElementById('password');
     const toggleButton  = document.querySelector('.password-toggle');
 
+    // Đổi cách hiển thị mật khẩu và cập nhật icon cùng nhãn hỗ trợ truy cập.
     toggleButton.addEventListener('click', function () {
         const showPassword = passwordInput.type === 'password';
         const label        = showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';

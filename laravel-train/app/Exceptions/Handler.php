@@ -16,7 +16,7 @@ use Throwable;
 
 class Handler extends ExceptionHandler
 {
-    // Cấu hình ghi log và phản hồi JSON
+    // Thiết lập exception cần ghi log, tránh log trùng và chọn phản hồi JSON khi phù hợp
     public function register(): void
     {
         $this->stopIgnoring($this->internalDontReport);
@@ -43,6 +43,7 @@ class Handler extends ExceptionHandler
     // Hiển thị giao diện lỗi cho người dùng, không hiển thị chi tiết lỗi
     protected function renderExceptionResponse(mixed $request, Throwable $exception): Response
     {
+        // Giữ định dạng JSON cho API hoặc request yêu cầu JSON thay vì dựng trang HTML.
         if ($this->shouldReturnJson($request, $exception)) {
             return parent::renderExceptionResponse($request, $exception);
         }
@@ -54,12 +55,13 @@ class Handler extends ExceptionHandler
             $headers = $exception->getHeaders();
         }
 
+        // Dựng trang lỗi chung với mã HTTP và header của exception.
         try {
             return response()->view('error', [], $status, $headers)->header('Cache-Control', 'no-store');
         } catch (Throwable $renderError) {
             report($renderError);
 
-            return response(__('messages.page_error'), 500)->header('Cache-Control', 'no-store');
+            return response(__('messages.page_error'), 500)->header('Cache-Control', 'no-store'); // Phản hồi văn bản dự phòng khi không dựng được trang lỗi.
         }
     }
 
@@ -78,6 +80,7 @@ class Handler extends ExceptionHandler
         $context['file']           = $exception->getFile();
         $context['line']           = $exception->getLine();
         $cause                     = $exception;
+        // Lần theo chuỗi exception để lấy nguyên nhân gốc giúp kiểm tra log.
         while ($cause->getPrevious() !== null) {
             $cause = $cause->getPrevious();
         }
@@ -99,6 +102,7 @@ class Handler extends ExceptionHandler
         $request = $this->container->make('request');
         $context = ['method' => $request->method(), 'path' => $request->path()];
         $guard   = $this->container->make('auth')->guard();
+        // Lấy ID từ guard đã có hoặc session để tránh phát sinh truy vấn database khi đang xử lý lỗi.
         if ($guard instanceof SessionGuard) {
             if ($guard->hasUser()) {
                 $context['user_id'] = $guard->user()->getAuthIdentifier();

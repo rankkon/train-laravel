@@ -51,8 +51,8 @@ class AppConstants
     public const ATTACHMENT_ACCEPT          = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf'; // Các loại tệp đính kèm được chấp nhận
     public const ATTACHMENT_MAX_MB          = 10; // Kích thước tối đa của tệp đính kèm (MB)
     public const ATTACHMENT_RANDOM_BYTES    = 16; // Số byte ngẫu nhiên để tạo tên tệp đính kèm
-    public const ATTACHMENT_TEMP_DIRECTORY  = 'temp/leaves';
-    public const ATTACHMENT_TEMP_TTL        = 86400;
+    public const ATTACHMENT_TEMP_DIRECTORY  = 'temp/leaves'; // Thư mục file tạm trên disk local riêng tư.
+    public const ATTACHMENT_TEMP_TTL        = 86400; // Thời gian tồn tại của file tạm tính bằng giây, tương đương 24 giờ.
     public const TITLE_MAX_LENGTH           = 255; // Độ dài tối đa của tiêu đề đơn
     public const CONTENT_MAX_BYTES          = 65535; // Số byte tối đa của nội dung đơn
     public const ATTACHMENT_NAME_MAX_LENGTH = 255; // Độ dài tối đa của tên tệp đính kèm

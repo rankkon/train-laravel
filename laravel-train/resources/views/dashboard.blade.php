@@ -18,6 +18,7 @@
     <main class="leave-list">
         <div class="leave-list-toolbar"></div>
 
+        {{-- Hai lớp bao tách cuộn ngang và cuộn dọc; danh sách đã được controller lọc quyền và sắp xếp. --}}
         <div class="leave-table-container">
             <div class="leave-table-scroll">
                 <table class="leave-table">
@@ -33,9 +34,10 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Hiển thị đơn theo trạng thái Mới, Đã duyệt, Đã hủy và xử lý trường hợp danh sách rỗng. --}}
                         @forelse ($leaves as $leave)
                             <tr class="leave-row leave-status-{{ $leave->status }}">
-                                <td>{{ $leaves->firstItem() + $loop->index }}</td>
+                                <td>{{ $leaves->firstItem() + $loop->index }}</td> {{-- STT tiếp tục theo số trang đang xem. --}}
                                 <td>{{ $leave->full_name }}</td>
                                 <td>{{ $leaveTypes[$leave->leave_type] }}</td>
                                 <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
@@ -55,7 +57,7 @@
             </div>
         </div>
 
-        {{ $leaves->links('pagination') }}
+        {{ $leaves->links('pagination') }} {{-- Dùng giao diện phân trang chung. --}}
     </main>
 </body>
 </html>

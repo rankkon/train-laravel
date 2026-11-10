@@ -8,7 +8,7 @@ use App\Models\User;
 
 class LeaveRequestPolicy
 {
-    // Kiểm tra quyền duyệt hoặc hủy đơn
+    // Chỉ xử lý đơn Mới: Admin được xử lý, Manager phải được chỉ định và quản lý User cùng phòng ban
     public function process(User $user, LeaveRequest $leave): bool
     {
         if ($user->status !== AppConstants::STATUS_ACTIVE || $leave->status !== AppConstants::STATUS_NEW) {
@@ -24,7 +24,7 @@ class LeaveRequestPolicy
             && $leave->user?->department === $user->department;
     }
 
-    // Kiểm tra quyền sửa đơn
+    // Chỉ chủ đơn đang hoạt động được sửa đơn còn trạng thái Mới
     public function update(User $user, LeaveRequest $leave): bool
     {
         return $user->status === AppConstants::STATUS_ACTIVE

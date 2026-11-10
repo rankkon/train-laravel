@@ -9,7 +9,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
-// Định nghĩa email thông báo đơn mới
+// Định nghĩa email thông báo đơn mới   
 class LeaveCreatedMail extends Mailable implements ShouldQueue
 {
     use Queueable;
@@ -34,7 +34,7 @@ class LeaveCreatedMail extends Mailable implements ShouldQueue
         );
     }
 
-    // Chuẩn bị nội dung hiển thị
+    // Chọn view email đơn mới và chuẩn bị nội dung hiển thị
     public function content(): Content
     {
         return new Content(

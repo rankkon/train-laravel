@@ -16,13 +16,15 @@
     <main class="leave-list leave-create">
         <h1 class="leave-form-title">{{ $formTitle }}</h1>
 
+        {{-- Form thêm/sửa đơn gửi cả dữ liệu và file bằng multipart/form-data, không lưu dữ liệu form vào session. --}}
         <form id="leave-form" class="leave-form" method="post" action="{{ $formAction }}" enctype="multipart/form-data" novalidate>
             <input type="hidden" name="MAX_FILE_SIZE" value="{{ \App\Constants\AppConstants::ATTACHMENT_MAX_MB * 1024 * 1024 }}">
+            {{-- Giữ dữ liệu lúc mở form qua các lần POST để phát hiện thay đổi và phục hồi khi xác nhận Xóa trống. --}}
             @foreach ($originalValues as $field => $value)
                 <input type="hidden" name="original_values[{{ $field }}]" value="{{ $value }}">
             @endforeach
             <input type="hidden" name="exit_destination" value="{{ $exitDestination }}">
-            <input type="hidden" name="attachment_token" value="{{ $attachment['token'] ?? '' }}">
+            <input type="hidden" name="attachment_token" value="{{ $attachment['token'] ?? '' }}"> {{-- Token tham chiếu file tạm hợp lệ để không cần chọn lại file qua mỗi bước xác nhận. --}}
             <div class="leave-form-fields">
                 <p class="leave-form-error" data-form-error="form" @if (! isset($errors['form'])) hidden @endif>{{ $errors['form'] ?? '' }}</p>
                 <div class="leave-form-field">
@@ -62,6 +64,7 @@
                     <p class="leave-form-error" data-form-error="leave_type" @if (! isset($errors['leave_type'])) hidden @endif>{{ $errors['leave_type'] ?? '' }}</p>
                 </div>
 
+                {{-- Ngày thêm mới bị giới hạn từ hôm nay; form sửa cho phép chọn ngày quá khứ. --}}
                 <div class="leave-form-field leave-form-date">
                     <label for="leave-start-date">Ngày bắt đầu <span class="required-marker">*</span></label>
                     <div class="leave-date-control">
@@ -82,6 +85,7 @@
 
                 <div class="leave-form-field">
                     <label for="leave-attachment">Đính kèm <span class="required-marker">*</span></label>
+                    {{-- Ô file không được điền lại bằng HTML; tên file đang giữ được hiển thị từ dữ liệu server. --}}
                     <div class="leave-file-control">
                         <input type="file" id="leave-attachment" name="attachment" accept="{{ \App\Constants\AppConstants::ATTACHMENT_ACCEPT }}" required
                             title="{{ __('messages.attachment_hint', ['size' => \App\Constants\AppConstants::ATTACHMENT_MAX_MB]) }}" class="{{ isset($errors['attachment']) ? 'leave-input-error' : '' }}">
@@ -92,6 +96,7 @@
                 </div>
             </div>
 
+            {{-- Lưu chỉ yêu cầu kiểm tra; việc lưu thực tế hoặc reset chỉ diễn ra sau khi đồng ý popup. --}}
             <div class="leave-form-actions">
                 <button type="submit" name="action" value="validate" class="leave-form-next">Lưu</button>
                 <button type="submit" name="action" value="clear" class="leave-form-clear">Xóa trống</button>
@@ -99,6 +104,6 @@
         </form>
     </main>
     @include('sidebar', ['sidebarFormId' => 'leave-form'])
-    @include('form-popups', ['formId' => 'leave-form'])
+    @include('form-popups', ['formId' => 'leave-form']) {{-- Các popup giữ dữ liệu đang nhập khi người dùng chọn Không. --}}
 </body>
 </html>

@@ -18,6 +18,7 @@
 
     <main class="leave-list">
         <div class="leave-list-toolbar">
+            {{-- Tìm kiếm theo mã hoặc tên và lọc tài khoản hoạt động, đã khóa hoặc tất cả. --}}
             <form method="get" action="{{ route('users.index') }}" id="user-search-form" class="leave-search user-search">
                 <label for="user-search">Mã/Tên user</label>
                 <input type="text" id="user-search" name="q" value="{{ $search }}">
@@ -33,6 +34,7 @@
                     @can('create', \App\Models\User::class)
                         <a href="{{ route('users.create') }}" class="leave-add">Thêm mới</a>
                     @endcan
+                    {{-- Form khóa nhiều nhận các checkbox được liên kết bằng thuộc tính form ở từng dòng. --}}
                     <form method="post" action="{{ $actionUrl }}" id="user-bulk-form">
                         <button name="action" value="open_bulk_lock" class="leave-add leave-cancel"
                             @if (! $users->contains(fn ($user) => $userActions[$user->id] && in_array($user->id, $selectedUserIds, true))) disabled @endif>Khóa nhiều</button>
@@ -41,6 +43,7 @@
             </div>
         </div>
 
+        {{-- Khung bảng dùng chung cách cuộn ngang và dọc với danh sách đơn. --}}
         <div class="leave-table-container">
             <div class="leave-table-scroll">
                 <table class="leave-table user-table">
@@ -55,6 +58,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{-- Chỉ hiển thị thao tác trên những tài khoản mà người xem có quyền quản lý. --}}
                         @forelse ($users as $user)
                             <tr>
                                 <td>
@@ -102,6 +106,7 @@
         {{ $users->links('pagination') }}
     </main>
 
+    {{-- Popup dùng chung cho khóa, mở khóa và khóa nhiều; xác nhận mới thực hiện thay đổi trạng thái. --}}
     @if ($statusPopup !== '')
         <div class="popup-overlay">
             <form method="post" action="{{ $actionUrl }}" class="popup-dialog">
@@ -122,9 +127,10 @@
     @endif
     <script>
         const selectAllUsers = document.getElementById('select-all-users');
-        const userCheckboxes = [...document.querySelectorAll('.user-table tbody input[name="user_ids[]"]:not(:disabled)')];
+        const userCheckboxes = [...document.querySelectorAll('.user-table tbody input[name="user_ids[]"]:not(:disabled)')]; // Chỉ lấy checkbox của các tài khoản được phép thao tác.
         const bulkLockButton = document.querySelector('#user-bulk-form button[value="open_bulk_lock"]');
 
+        // Đồng bộ nút khóa từng dòng, nút khóa nhiều và trạng thái chọn tất cả.
         function updateUserSelection() {
             let selectedCount = 0;
             for (const checkbox of userCheckboxes) {
@@ -133,17 +139,18 @@
                 }
                 const lockButton = checkbox.closest('tr').querySelector('button[value="open_lock"]');
                 if (lockButton) {
-                    lockButton.disabled = !checkbox.checked;
+                    lockButton.disabled = !checkbox.checked; // Nút khóa chỉ bật khi checkbox cùng dòng được chọn.
                 }
             }
             if (bulkLockButton) {
-                bulkLockButton.disabled = selectedCount === 0;
+                bulkLockButton.disabled = selectedCount === 0; // Khóa nhiều chỉ bật khi có ít nhất một checkbox được chọn.
             }
             selectAllUsers.disabled      = userCheckboxes.length === 0;
             selectAllUsers.checked       = selectedCount > 0 && selectedCount === userCheckboxes.length;
-            selectAllUsers.indeterminate = selectedCount > 0 && selectedCount < userCheckboxes.length;
+            selectAllUsers.indeterminate = selectedCount > 0 && selectedCount < userCheckboxes.length; // Hiển thị trạng thái chọn một phần nếu chưa chọn hết các dòng.
         }
 
+        // Chọn hoặc bỏ chọn toàn bộ checkbox được phép thao tác.
         selectAllUsers.addEventListener('change', function () {
             for (const checkbox of userCheckboxes) {
                 checkbox.checked = selectAllUsers.checked;
@@ -154,9 +161,10 @@
         for (const checkbox of userCheckboxes) {
             checkbox.addEventListener('change', updateUserSelection);
         }
-        window.addEventListener('pageshow', updateUserSelection);
+        window.addEventListener('pageshow', updateUserSelection); // Đồng bộ lại khi trình duyệt khôi phục trang từ bộ nhớ.
         updateUserSelection();
 
+        // Gửi lại bộ lọc bằng GET ngay khi thay đổi lựa chọn trạng thái.
         document.getElementById('user-status').addEventListener('change', function () {
             this.form.requestSubmit();
         });

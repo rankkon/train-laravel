@@ -1,3 +1,4 @@
+{{-- Checkbox ẩn điều khiển popup lưu bằng CSS; Đồng ý gửi action save, Không chỉ đóng popup. --}}
 <input type="checkbox" id="form-save-toggle" class="form-popup-toggle" @checked($showSavePopup) hidden>
 <div id="form-save-popup" class="popup-overlay form-popup">
     <section class="popup-dialog" role="dialog" aria-modal="true" aria-labelledby="form-save-title">
@@ -12,6 +13,7 @@
         </div>
     </section>
 </div>
+{{-- Popup rời trang chỉ chuyển trang hoặc đăng xuất sau khi người dùng đồng ý. --}}
 <input type="checkbox" id="form-exit-toggle" class="form-popup-toggle" @checked($showExitPopup) hidden>
 <div id="form-exit-popup" class="popup-overlay form-popup">
     <section class="popup-dialog" role="dialog" aria-modal="true" aria-labelledby="form-exit-title">
@@ -21,6 +23,7 @@
         </header>
         <p class="popup-message">{{ $exitMessage }}</p>
         <div class="popup-actions">
+            {{-- Đăng xuất dùng form POST riêng; các trang đích còn lại gửi confirm_exit về form hiện tại. --}}
             @if ($exitDestination === 'logout')
                 <button type="submit" form="form-logout" class="popup-button popup-confirm" @if ($showExitPopup) autofocus @endif>Đồng ý</button>
             @else
@@ -30,6 +33,7 @@
         </div>
     </section>
 </div>
+{{-- Popup Xóa trống chỉ gửi confirm_clear khi đồng ý; đóng popup giữ dữ liệu đang nhập. --}}
 <input type="checkbox" id="form-clear-toggle" class="form-popup-toggle" @checked($showClearPopup) hidden>
 <div id="form-clear-popup" class="popup-overlay form-popup">
     <section class="popup-dialog" role="dialog" aria-modal="true" aria-labelledby="form-clear-title">
@@ -44,4 +48,4 @@
         </div>
     </section>
 </div>
-<form id="form-logout" method="post" action="{{ route('logout') }}" hidden></form>
+<form id="form-logout" method="post" action="{{ route('logout') }}" hidden></form> {{-- Form độc lập để thực hiện đăng xuất bằng POST. --}}
