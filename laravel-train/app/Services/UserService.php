@@ -73,18 +73,19 @@ class UserService
 
                 // Cập nhật hồ sơ đang sửa hoặc tạo tài khoản mới với trạng thái hoạt động
                 if ($editedUser !== null) {
-                    User::query()->whereKey($editedUserId)->update([
+                    $changes = [
                         'full_name'  => $values['full_name'],
                         'email'      => $values['email'] === '' ? null : $values['email'],
                         'birth_date' => $values['birth_date'] === '' ? null : $values['birth_date'],
                         'user_type'  => (int) $values['user_type'],
                         'department' => (int) $values['department'],
                         'update_at'  => now()->format('Y-m-d H:i:s'),
-                    ]);
+                    ];
                     // Mật khẩu mới để trống khi sửa sẽ giữ nguyên mật khẩu đã lưu
                     if ($values['password'] !== '') {
-                        User::query()->whereKey($editedUserId)->update(['password_hash' => md5($values['password'])]);
+                        $changes['password_hash'] = md5($values['password']);
                     }
+                    User::query()->whereKey($editedUserId)->update($changes);
                 } else {
                     $newUser = new User;
                     $newUser->username      = $values['username'];

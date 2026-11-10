@@ -26,7 +26,6 @@
             @endforeach
             <input type="hidden" name="exit_destination" value="{{ $exitDestination }}"> {{-- Chỉ phục vụ bước xác nhận chuyển trang, controller kiểm tra lại route đích. --}}
             <div class="user-form-fields">
-                <p class="user-field-error" data-form-error="form" hidden></p>
                 <div class="user-form-field">
                     <label for="username">Tên đăng nhập <span class="required-marker">*</span></label> {{-- Username không được thay đổi khi sửa; service vẫn kiểm tra trên server. --}}
                     <input type="text" id="username" name="username" value="{{ $values['username'] }}" required

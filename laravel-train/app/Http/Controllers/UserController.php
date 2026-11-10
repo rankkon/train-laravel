@@ -97,13 +97,7 @@ class UserController extends Controller
         if ($request->isMethod('post')) { // Đọc thao tác gửi từ form
             $action         = $request->post('action', 'validate');
             $allowedActions = array_merge(['validate', 'save', 'clear', 'confirm_clear', 'confirm_exit'], array_keys($exitActions));
-            // Các thao tác của form: 
-            //Validate: kiểm tra dữ liệu trước khi mở popup xác nhận
-            // save: xác nhận lưu, kiểm tra lại dư liệu và ghi database
-            // clear: kiểm tra thay đổi trước khi mở popup xác nhận xóa trống
-            // Confirm_clear: Xác nhận bỏ dữ liệu đang nhập và khôi phục giá trị ban đầu
-            // exist_*: Kiểm tra thay đổi trước khi chuyển trang hoặc đăng xuất
-            // Confirm_exit: Xác nhận bỏ thay đổi và chuyển đến trang được phép
+            // Các thao tác: validate/save để kiểm tra và lưu, clear/confirm_clear để xóa trống, exit_*/confirm_exit để rời form.
             abort_unless(is_string($action) && in_array($action, $allowedActions, true), 400);
             if ($action === 'confirm_exit') {
                 $exitDestination = $request->post('exit_destination');

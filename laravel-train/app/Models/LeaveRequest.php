@@ -40,8 +40,7 @@ class LeaveRequest extends Model
         // Gom các điều kiện để không làm thay đổi phạm vi đơn được xem
         $query->where(function (Builder $matches) use ($pattern, $comparison): void {
             $matches->whereRaw(sprintf($comparison, 'users.full_name'), ['\\p{M}', $pattern, '\\p{M}'])
-                ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}'])
-                ->orWhere('leave.leave_type', 0);
+                ->orWhereRaw(sprintf($comparison, '`leave`.title'), ['\\p{M}', $pattern, '\\p{M}']);
             // Tìm theo tên loại đơn hiển thị
             foreach (AppConstants::LEAVE_TYPES as $type => $name) {
                 $matches->orWhereRaw('(`leave`.leave_type = ? AND '.sprintf($comparison, 'CAST(? AS CHAR)').')', [
