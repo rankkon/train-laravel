@@ -192,6 +192,10 @@ class UserController extends Controller
 
         $filters            = $this->listFilters($request); // Giữ từ khóa, bộ lọc và số trang để sau thao tác vẫn trờ lại đúng danh sách
         $redirectParameters = ['q' => $filters['search'], 'status' => $filters['status'], 'page' => $filters['page']]; // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
+        // Đưa sort về mặc định sau khi thao tác
+        if ($filters['sort'] !== '') {
+            $redirectParameters['page'] = 1;
+        }
         if ($action === 'close_popup') { // Đóng popup và tải lại danh sách, không thay đổi trạng thái tài khoản
             return redirect()->route('users.index', $redirectParameters, 303);
         }
@@ -233,6 +237,10 @@ class UserController extends Controller
                 return redirect()->route('users.index', $redirectParameters, 303);
             }
 
+            $filters['sort']      = '';
+            $filters['direction'] = 'desc';
+            $filters['page']      = $redirectParameters['page'];
+
             return $this->renderList($request->user(), $filters, selectedUserIds: $selectedUserIds); // Hiển thị lại danh sách và giữ tick các người dùng đã chọn nếu hủy popup
         }
 
@@ -271,28 +279,63 @@ class UserController extends Controller
             $requestedPage = 1; // Trang không hợp lệ sẽ trả về trang đầu
         }
 
-        return ['search' => $search, 'status' => $statusFilter, 'page' => $requestedPage];
+        $sort      = $request->query('sort', '');
+        $direction = $request->query('direction', 'asc');
+        if (! is_string($sort) || ! in_array($sort, ['id', 'full_name', 'created_at', 'status'], true)
+            || ! is_string($direction) || ! in_array($direction, ['asc', 'desc'], true)) {
+            $sort      = '';
+            $direction = 'desc';
+        }
+
+        return [
+            'search'    => $search,
+            'status'    => $statusFilter,
+            'page'      => $requestedPage,
+            'sort'      => $sort,
+            'direction' => $direction,
+        ];
     }
 
     // Chuẩn bị danh sách, trạng thái checkbox và popup
     private function renderList(User $viewer, array $filters, string $statusPopup = '', int $statusUserId = 0, array $selectedUserIds = []): View
     {
-        $search        = $filters['search'];
-        $statusFilter  = $filters['status'];
-        $requestedPage = $filters['page'];
-        $query         = User::query()->visibleTo($viewer)->matching($search); // Áp dụng phạm vi được xem và từ khóa trước khi đếm, lọc và phân trang
+        $search          = $filters['search'];
+        $statusFilter    = $filters['status'];
+        $requestedPage   = $filters['page'];
+        $sortColumn      = $filters['sort'];
+        $sortDirection   = $filters['direction'];
+        $queryParameters = ['q' => $search, 'status' => $statusFilter];
+        $query           = User::query()->visibleTo($viewer)->matching($search); // Áp dụng phạm vi được xem và từ khóa trước khi đếm, lọc và phân trang
         if ($statusFilter !== '') {
             $query->where('status', (int) $statusFilter);
+        }
+        if ($filters['sort'] !== '') {
+            $queryParameters['sort']      = $sortColumn;
+            $queryParameters['direction'] = $sortDirection;
         }
 
         $total    = (clone $query)->count();
         $perPage  = AppConstants::USERS_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page     = min($requestedPage, $lastPage);
-        $users    = $query->orderByDesc('created_at')->orderByDesc('id') // Sắp xếp theo ngày tạo giảm dần, id giảm dần
+        if ($filters['sort'] === '') {
+            $query->orderByDesc('created_at')->orderByDesc('id'); // Sắp xếp theo ngày tạo giảm dần, id giảm dần
+        } else {
+            $databaseDirection = $sortDirection;
+            if ($sortColumn === 'status') {
+                $databaseDirection = $sortDirection === 'asc' ? 'desc' : 'asc'; // Đảo chiều mã trạng thái
+            }
+            // Khi giá trị cột sort trùng, sẽ sort theo ID giảm dần
+            $query->orderBy($sortColumn, $databaseDirection);
+            if ($sortColumn !== 'id') {
+                $query->orderByDesc('id');
+            }
+        }
+
+        $users = $query
             ->paginate($perPage, ['id', 'full_name', 'created_at', 'status', 'user_type', 'department'], page: $page, total: $total)
             ->withPath(route('users.index'))
-            ->appends(['q' => $search, 'status' => $statusFilter]); // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
+            ->appends($queryParameters); // Giữ các tham số tìm kiếm và lọc trạng thái trong URL phân trang
 
         $showUserListActions = in_array($viewer->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true); // Admin và manager được hiển thị nhóm nút thao tác quản lý
         $userActions         = [];
@@ -314,10 +357,12 @@ class UserController extends Controller
             'users'               => $users,
             'search'              => $search,
             'statusFilter'        => $statusFilter,
+            'sortColumn'          => $sortColumn,
+            'sortDirection'       => $sortDirection,
             'userStatuses'        => AppConstants::USER_STATUSES,
             'showUserListActions' => $showUserListActions,
             'userActions'         => $userActions,
-            'actionUrl'           => route('users.actions', ['q' => $search, 'status' => $statusFilter, 'page' => $requestedPage]),
+            'actionUrl'           => route('users.actions', $queryParameters + ['page' => $requestedPage]),
             'statusPopup'         => $statusPopup,
             'statusUserId'        => $statusUserId,
             'statusMessage'       => $statusMessage,

@@ -20,6 +20,10 @@
         <div class="leave-list-toolbar">
             {{-- Tìm kiếm theo mã hoặc tên và lọc tài khoản hoạt động, đã khóa hoặc tất cả. --}}
             <form method="get" action="{{ route('users.index') }}" id="user-search-form" class="leave-search user-search">
+                @if ($sortColumn !== '')
+                    <input type="hidden" name="sort" value="{{ $sortColumn }}">
+                    <input type="hidden" name="direction" value="{{ $sortDirection }}">
+                @endif
                 <label for="user-search">Mã/Tên user</label>
                 <input type="text" id="user-search" name="q" value="{{ $search }}">
                 <select id="user-status" name="status" class="user-status-filter" aria-label="Trạng thái người dùng">
@@ -50,10 +54,39 @@
                     <thead>
                         <tr>
                             <th scope="col"><input type="checkbox" id="select-all-users"></th>
-                            <th scope="col">Mã người dùng</th>
-                            <th scope="col">Tên người dùng</th>
-                            <th scope="col">Ngày lập</th>
-                            <th scope="col">Trạng thái</th>
+                            @foreach ([
+                                'id'         => 'Mã người dùng',
+                                'full_name'  => 'Tên người dùng',
+                                'created_at' => 'Ngày lập',
+                                'status'     => 'Trạng thái',
+                            ] as $column => $label)
+                                @php
+                                    $isSorted       = $sortColumn === $column;
+                                    $nextDirection  = 'asc';
+                                    $sortIcon       = '↕';
+                                    $ariaSort       = 'none';
+                                    $sortParameters = ['q' => $search, 'status' => $statusFilter];
+                                    $sortAction     = 'trở về thứ tự mặc định';
+                                    if ($isSorted) {
+                                        $nextDirection = $sortDirection === 'asc' ? 'desc' : '';
+                                        $sortIcon      = $sortDirection === 'asc' ? '↑' : '↓';
+                                        $ariaSort      = $sortDirection === 'asc' ? 'ascending' : 'descending';
+                                    }
+                                    if ($nextDirection !== '') {
+                                        $sortParameters['sort']      = $column;
+                                        $sortParameters['direction'] = $nextDirection;
+                                        $sortAction                  = $nextDirection === 'asc' ? 'sắp xếp tăng dần' : 'sắp xếp giảm dần';
+                                    }
+                                @endphp
+                                <th scope="col" aria-sort="{{ $ariaSort }}">
+                                    <a href="{{ route('users.index', $sortParameters) }}"
+                                        class="user-sort-link{{ $isSorted ? ' user-sort-active' : '' }}"
+                                        aria-label="{{ $label }}: {{ $sortAction }}">
+                                        <span>{{ $label }}</span>
+                                        <span class="user-sort-icon" aria-hidden="true">{{ $sortIcon }}</span>
+                                    </a>
+                                </th>
+                            @endforeach
                             <th scope="col">Hành động</th>
                         </tr>
                     </thead>
@@ -126,6 +159,16 @@
         </div>
     @endif
     <script>
+        if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('sort') || url.searchParams.has('direction')) {
+                url.searchParams.delete('sort');
+                url.searchParams.delete('direction');
+                url.searchParams.delete('page');
+                window.location.replace(url.href);
+            }
+        }
+
         const selectAllUsers = document.getElementById('select-all-users');
         const userCheckboxes = [...document.querySelectorAll('.user-table tbody input[name="user_ids[]"]:not(:disabled)')]; // Chỉ lấy checkbox của các tài khoản được phép thao tác.
         const bulkLockButton = document.querySelector('#user-bulk-form button[value="open_bulk_lock"]');

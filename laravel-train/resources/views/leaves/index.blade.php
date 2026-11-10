@@ -20,6 +20,10 @@
             {{-- Tìm kiếm gửi GET để giữ từ khóa trên URL và trong các liên kết phân trang. --}}
             <form method="get" action="{{ route('leaves.index') }}" id="leave-search-form" class="leave-search">
                 <label for="leave-search">Tên user/Loại đơn/Nội dung</label>
+                @if ($sortColumn !== '')
+                    <input type="hidden" name="sort" value="{{ $sortColumn }}">
+                    <input type="hidden" name="direction" value="{{ $sortDirection }}">
+                @endif
                 <input type="text" id="leave-search" name="q" value="{{ $search }}">
             </form>
             <div class="leave-list-actions">
@@ -34,13 +38,42 @@
                 <table class="leave-table leave-management-table">
                     <thead>
                         <tr>
-                            <th scope="col">STT</th>
-                            <th scope="col">Người dùng</th>
-                            <th scope="col">Loại đơn</th>
-                            <th scope="col">Ngày lập</th>
-                            <th scope="col">Trạng thái</th>
-                            <th scope="col">Ngày duty</th>
-                            <th scope="col">Mô tả</th>
+                            @foreach ([
+                                'stt'        => 'STT',
+                                'full_name'  => 'Người dùng',
+                                'leave_type' => 'Loại đơn',
+                                'created_at' => 'Ngày lập',
+                                'status'     => 'Trạng thái',
+                                'end_date'   => 'Ngày duty',
+                                'title'      => 'Mô tả',
+                            ] as $column => $label)
+                                @php
+                                    $isSorted       = $sortColumn === $column;
+                                    $nextDirection  = 'asc';
+                                    $sortIcon       = '↕';
+                                    $ariaSort       = 'none';
+                                    $sortParameters = ['q' => $search];
+                                    $sortAction     = 'trở về thứ tự mặc định';
+                                    if ($isSorted) {
+                                        $nextDirection = $sortDirection === 'asc' ? 'desc' : '';
+                                        $sortIcon      = $sortDirection === 'asc' ? '↑' : '↓';
+                                        $ariaSort      = $sortDirection === 'asc' ? 'ascending' : 'descending';
+                                    }
+                                    if ($nextDirection !== '') {
+                                        $sortParameters['sort']      = $column;
+                                        $sortParameters['direction'] = $nextDirection;
+                                        $sortAction                  = $nextDirection === 'asc' ? 'sắp xếp tăng dần' : 'sắp xếp giảm dần';
+                                    }
+                                @endphp
+                                <th scope="col" aria-sort="{{ $ariaSort }}">
+                                    <a href="{{ route('leaves.index', $sortParameters) }}"
+                                       class="leave-sort-link{{ $isSorted ? ' leave-sort-active' : '' }}"
+                                       aria-label="{{ $label }}: {{ $sortAction }}">
+                                        <span>{{ $label }}</span>
+                                        <span class="leave-sort-icon" aria-hidden="true">{{ $sortIcon }}</span>
+                                    </a>
+                                </th>
+                            @endforeach
                             <th scope="col">Hành động</th>
                         </tr>
                     </thead>
@@ -50,9 +83,13 @@
                             @php
                                 $canProcess = auth()->user()->can('process', $leave);
                                 $canEdit    = auth()->user()->can('update', $leave);
+                                $rowNumber  = $leaves->firstItem() + $loop->index;
+                                if ($sortColumn === 'stt' && $sortDirection === 'desc') {
+                                    $rowNumber = $leaves->total() - $rowNumber + 1;
+                                }
                             @endphp
                             <tr class="leave-row leave-status-{{ $leave->status }}">
-                                <td>{{ $leaves->firstItem() + $loop->index }}</td> {{-- STT liên tục giữa các trang. --}}
+                                <td>{{ $rowNumber }}</td> {{-- STT liên tục giữa các trang. --}}
                                 <td>{{ $leave->full_name }}</td>
                                 <td>{{ $leaveTypes[$leave->leave_type] }}</td>
                                 <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
@@ -129,5 +166,16 @@
             </form>
         </div>
     @endif
+    <script>
+        if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('sort') || url.searchParams.has('direction')) {
+                url.searchParams.delete('sort');
+                url.searchParams.delete('direction');
+                url.searchParams.delete('page');
+                window.location.replace(url.href);
+            }
+        }
+    </script>
 </body>
 </html>

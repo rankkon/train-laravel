@@ -191,6 +191,9 @@ class LeaveController extends Controller
         $filters = $this->listFilters($request); // Giữ từ khóa tìm kiếm và số trang
         $search  = $filters['search'];
         $page    = $filters['page'];
+        if ($filters['sort'] !== '') {
+            $page = 1;
+        }
 
         if ($action === 'close_popup') {
             return redirect()->route('leaves.index', ['q' => $search, 'page' => $page], 303);
@@ -260,9 +263,16 @@ class LeaveController extends Controller
         array $processErrors = [],
         int $status          = 200,
     ): Response {
-        $filters       = $this->listFilters($request);
-        $search        = $filters['search'];
-        $requestedPage = $filters['page'];
+        $filters         = $this->listFilters($request);
+        $search          = $filters['search'];
+        $requestedPage   = $filters['page'];
+        $sortColumn      = $filters['sort'];
+        $sortDirection   = $filters['direction'];
+        $queryParameters = ['q' => $search];
+        if ($sortColumn !== '') {
+            $queryParameters['sort']      = $sortColumn;
+            $queryParameters['direction'] = $sortDirection;
+        }
         // Lọc phạm vi được xem và từ khóa trước khi đếm, sắp xếp và phân trang
         $query         = LeaveRequest::query()
             ->visibleTo($request->user())
@@ -273,22 +283,41 @@ class LeaveController extends Controller
         $perPage  = AppConstants::LEAVES_PER_PAGE;
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page     = min($requestedPage, $lastPage);
+        if ($sortColumn === '' || ($sortColumn === 'stt' && $sortDirection === 'asc')) {
+            $query->orderBy('leave.status')->orderByDesc('leave.created_at')->orderByDesc('leave.id');
+        } elseif ($sortColumn === 'stt') {
+            $query->orderByDesc('leave.status')->orderBy('leave.created_at')->orderBy('leave.id');
+        } else {
+            if ($sortColumn === 'leave_type') {
+                $typeOrder    = 'CASE `leave`.leave_type';
+                $typeBindings = [];
+                foreach (AppConstants::LEAVE_TYPES as $type => $name) {
+                    $typeOrder      .= ' WHEN ? THEN ?';
+                    $typeBindings[]  = $type;
+                    $typeBindings[]  = $name;
+                }
+                $query->orderByRaw($typeOrder.' END '.$sortDirection, $typeBindings);
+            } else {
+                $databaseColumn = $sortColumn === 'full_name' ? 'users.full_name' : 'leave.'.$sortColumn;
+                $query->orderBy($databaseColumn, $sortDirection);
+            }
+            $query->orderByDesc('leave.id');
+        }
         // Nạp sẵn người tạo để kiểm tra quyền từng dòng và ưu tiên đơn Mới, Đã duyệt, Đã hủy
         $leaves   = $query->with('user:id,user_type,department')
-            ->orderBy('leave.status')
-            ->orderByDesc('leave.created_at')
-            ->orderByDesc('leave.id')
             ->paginate($perPage, [
                 'leave.id', 'leave.user_id', 'leave.approver_id', 'leave.leave_type',
                 'leave.created_at', 'leave.status', 'leave.end_date', 'leave.title', 'users.full_name',
             ], page: $page, total: $total)
             ->withPath(route('leaves.index'))
-            ->appends(['q' => $search]);
+            ->appends($queryParameters);
 
         return response()->view('leaves.index', [
             'leaves'         => $leaves,
             'search'         => $search,
-            'actionUrl'      => route('leaves.actions', ['q' => $search, 'page' => $requestedPage]),
+            'sortColumn'     => $sortColumn,
+            'sortDirection'  => $sortDirection,
+            'actionUrl'      => route('leaves.actions', $queryParameters + ['page' => $requestedPage]),
             'leaveTypes'     => AppConstants::LEAVE_TYPES,
             'leaveStatuses'  => AppConstants::LEAVE_STATUSES,
             'processPopup'   => $processPopup,
@@ -308,7 +337,20 @@ class LeaveController extends Controller
             $page = 1; // Trang sai định dạng hoặc nhỏ hơn 1 được đưa về trang đầu
         }
 
-        return ['search' => $search, 'page' => $page];
+        $sort      = $request->query('sort', '');
+        $direction = $request->query('direction', 'asc');
+        if (! is_string($sort) || ! in_array($sort, ['stt', 'full_name', 'leave_type', 'created_at', 'status', 'end_date', 'title'], true)
+            || ! is_string($direction) || ! in_array($direction, ['asc', 'desc'], true)) {
+            $sort      = '';
+            $direction = 'desc';
+        }
+
+        return [
+            'search'    => $search,
+            'page'      => $page,
+            'sort'      => $sort,
+            'direction' => $direction,
+        ];
     }
 
     // Kiểm tra lý do hủy đơn
