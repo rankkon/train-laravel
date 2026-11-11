@@ -41,7 +41,7 @@ class LeaveProcessedMail extends Mailable implements ShouldQueue
         $isApproved = $this->values['status'] === AppConstants::STATUS_APPROVED;
 
         return new Content(
-            view: 'leave-processed-mail',
+            view: 'mails.leave-processed',
             with: [
                 'leaveType'   => AppConstants::LEAVE_TYPES[(int) $this->values['leave_type']],
                 'mailSubject' => $this->envelope()->subject,

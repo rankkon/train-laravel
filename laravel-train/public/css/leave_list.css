@@ -30,6 +30,15 @@
     padding: 24px;
 }
 
+.leave-list-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: inherit;
+    min-width: 0;
+    min-height: 0;
+}
+
 .leave-list-toolbar {
     display: flex;
     flex: none;
@@ -412,10 +421,6 @@
     overflow-wrap: anywhere;
 }
 
-.leave-cancel-reason.leave-field-error {
-    border-color: #BD0101;
-}
-
 .leave-cancel-reason + .leave-process-error {
     margin: 8px 0 0;
 }
@@ -436,7 +441,9 @@
     flex: none;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
+    margin-top: auto;
     min-height: 38px;
     font-size: 16px;
     line-height: 100%;

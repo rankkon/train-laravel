@@ -189,6 +189,15 @@
     color: #000000;
 }
 
+dialog.popup-dialog {
+    padding: 0;
+    border: 0;
+}
+
+dialog.popup-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+}
+
 .popup-header {
     display: flex;
     align-items: center;
@@ -316,13 +325,8 @@
     }
 }
 
-.form-popup,
 [data-form-error][hidden] {
     display: none;
-}
-
-.form-popup-toggle:checked + .form-popup {
-    display: flex;
 }
 
 .password-control {

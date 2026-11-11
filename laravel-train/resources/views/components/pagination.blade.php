@@ -2,7 +2,7 @@
 @php
     $page        = $paginator->currentPage();
     $totalPages  = $paginator->lastPage();
-    $nearby      = \App\Constants\AppConstants::PAGINATION_NEARBY_PAGES;
+    $nearby      = 2;
     $pageNumbers = [1];
     for ($number = max(2, $page - $nearby); $number <= min($totalPages - 1, $page + $nearby); $number++) {
         $pageNumbers[] = $number;

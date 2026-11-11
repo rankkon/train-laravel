@@ -7,7 +7,6 @@ use Illuminate\Auth\SessionGuard;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,9 +34,6 @@ class Handler extends ExceptionHandler
 
             return false;
         });
-        $this->shouldRenderJsonWhen(
-            fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
-        );
     }
 
     // Hiển thị giao diện lỗi cho người dùng, không hiển thị chi tiết lỗi
@@ -57,7 +53,7 @@ class Handler extends ExceptionHandler
 
         // Dựng trang lỗi chung với mã HTTP và header của exception.
         try {
-            return response()->view('error', [], $status, $headers)->header('Cache-Control', 'no-store');
+            return response()->view('errors.common', [], $status, $headers)->header('Cache-Control', 'no-store');
         } catch (Throwable $renderError) {
             report($renderError);
 

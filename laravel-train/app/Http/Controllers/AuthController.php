@@ -3,24 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Constants\AppConstants;
+use App\Http\Middleware\ActiveUser;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(ActiveUser::class)->except('logout');
+        $this->middleware('guest')->only(['showLogin', 'login']);
+    }
+
     // Xóa phiên đăng nhập và chuyển về trang login
     public function logout(Request $request): RedirectResponse
     {
-        if (! $request->isMethod('post')) {
-            return redirect()->route('login');
-        }
-
-        $request->session()->invalidate(); // Hủy phiên
-        Auth::forgetGuards(); // Bỏ qua các guard để không đọc lại từ phiên cũ
         Auth::logout();
+        $request->session()->invalidate(); // Hủy phiên
         $request->session()->regenerateToken(); // tạo lại session token
 
         return redirect()->route('login', status: 303);
@@ -29,7 +33,7 @@ class AuthController extends Controller
     // Hiển thị form đăng nhập
     public function showLogin(): View
     {
-        return view('login', [ // Dữ liệu mặc định cho form đăng nhập
+        return view('auth.login', [ // Dữ liệu mặc định cho form đăng nhập
             'username'          => '',
             'usernameError'     => false,
             'passwordError'     => false,
@@ -44,35 +48,25 @@ class AuthController extends Controller
             return redirect()->route('login', status: 303); // Mở lại form đăng nhập mặc định
         }
 
-        $username = $request->input('username');
-        if (! is_string($username)) { // Chỉ nhận chuỗi
-            $username = '';
-        }
-        $trimmedUsername = trim($username);
-        if ($trimmedUsername === '') {
-            $username = '';
-        }
-        $password = $request->input('password');
-        if (! is_string($password)) { // Chỉ nhận chuỗi
-            $password = '';
-        }
-
-        $usernameError     = $username === ''; // Kiểm tra username có rỗng không
-        $passwordError     = $password === ''; // Kiểm tra password có rỗng không
+        $validator = Validator::make($request->only('username', 'password'), [
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+        $usernameError     = $validator->errors()->has('username');
+        $passwordError     = $validator->errors()->has('password');
+        $username         = $usernameError ? '' : $request->input('username');
+        $password         = $request->input('password');
         $loginErrorMessage = __('messages.login_failed');
 
         if (! $usernameError && ! $passwordError) {
             $user = User::query()->where('username', $username)->first();
-            if ($user === null && $username !== $trimmedUsername) {
-                $user = User::query()->where('username', $trimmedUsername)->first();
-            }
 
             if (! $user) { // Kiểm tra tài khoản tồn tại
                 $usernameError = true;
             } elseif ($user->status !== AppConstants::STATUS_ACTIVE) { // Kiểm tra tài khoản hoạt động
                 $usernameError     = true;
                 $loginErrorMessage = __('messages.account_locked');
-            } elseif (! hash_equals($user->password_hash, md5($password))) { // Kiểm tra mật khẩu
+            } elseif (! Hash::check($password, $user->password_hash)) { // Kiểm tra mật khẩu
                 $passwordError = true;
             } else {
                 Auth::login($user); // Đăng nhập thành công
@@ -81,6 +75,6 @@ class AuthController extends Controller
             }
         }
 
-        return view('login', compact('username', 'usernameError', 'passwordError', 'loginErrorMessage'));
+        return view('auth.login', compact('username', 'usernameError', 'passwordError', 'loginErrorMessage'));
     }
 }

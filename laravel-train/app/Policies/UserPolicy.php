@@ -11,7 +11,7 @@ class UserPolicy
     public function create(User $user): bool
     {
         return $user->status === AppConstants::STATUS_ACTIVE
-            && in_array($user->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true); // Chỉ Manager và Admin đang hoạt động được thêm người dùng mới
+            && in_array($user->user_type, [AppConstants::TYPE_MANAGER, AppConstants::TYPE_ADMIN], true); 
     }
 
     // Admin quản lý mọi tài khoản; Manager chỉ quản lý User cùng phòng ban
