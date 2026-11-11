@@ -1,24 +1,22 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập | Sanshin</title>
-    <link rel="stylesheet" href="{{ asset('css/common.css') }}?v={{ filemtime(public_path('css/common.css')) }}">
+@extends('layouts.base')
+
+@section('title', 'Đăng nhập')
+@section('body-class', 'login-page')
+
+@push('styles')
     <link rel="stylesheet" href="{{ asset('css/login.css') }}?v={{ filemtime(public_path('css/login.css')) }}">
-</head>
-<body class="login-page">
+@endpush
+
+@section('body')
     <div class="login-surface">
-        <header class="site-header">
-            <span class="site-brand">Sanshin</span>
-            <span class="site-description">Hệ thống quản lý đơn</span>
-        </header>
+        @include('layouts.header')
 
         <main class="login-container">
             <h1 class="login-title">Sanshin IT Solution</h1>
 
             {{-- Form gửi POST và hiển thị lỗi do server trả về; không điền lại mật khẩu sau lần đăng nhập lỗi. --}}
             <form method="post" action="{{ route('login.submit') }}" novalidate>
+                @csrf
                 <div class="login-field login-username">
                     <label for="username">Tên đăng nhập</label>
                     <span class="required-marker">*</span>
@@ -47,7 +45,7 @@
                         required
                     >
                     <span class="login-placeholder">Mật khẩu</span>
-                    @include('password-toggle') {{-- Dùng chung nút ẩn/hiện mật khẩu, không gửi form. --}}
+                    @include('components.password-toggle') {{-- Dùng chung nút ẩn/hiện mật khẩu, không gửi form. --}}
                 </div>
 
                 <div class="login-actions">
@@ -66,5 +64,4 @@
             </form>
         </main>
     </div>
-</body>
-</html>
+@endsection

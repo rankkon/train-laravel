@@ -4,17 +4,12 @@ namespace App\Constants;
 
 class AppConstants
 {
-    public const TYPE_USER                 = 1; // Mã vai trò: Người dùng
-    public const TYPE_MANAGER              = 2; // Mã vai trò: Quản lý
-    public const TYPE_ADMIN                = 3; // Mã vai trò: Quản trị viên
-    public const STATUS_ACTIVE             = 1; // Mã trạng thái: Hoạt động
-    public const STATUS_LOCKED             = 0; // Mã trạng thái: Bị khóa
-    public const USERNAME_MAX_LENGTH       = 50; // Giới hạn độ dài tên đăng nhập
-    public const USER_FULL_NAME_MAX_LENGTH = 100; // Giới hạn độ dài tên người dùng
-    public const USER_PASSWORD_MIN_LENGTH  = 8; // Độ dài mật khẩu tối thiểu
-    public const USER_EMAIL_MAX_LENGTH     = 254; // Giới hạn độ dài email
-    public const USERS_PER_PAGE            = 15; // Số lượng người dùng hiển thị trên mỗi trang
-    public const USER_CODE_LENGTH          = 4; // Độ dài của mã người dùng
+    public const TYPE_USER        = 1; // Mã vai trò: Người dùng
+    public const TYPE_MANAGER     = 2; // Mã vai trò: Quản lý
+    public const TYPE_ADMIN       = 3; // Mã vai trò: Quản trị viên
+    public const STATUS_ACTIVE    = 1; // Mã trạng thái: Hoạt động
+    public const STATUS_LOCKED    = 0; // Mã trạng thái: Bị khóa
+    public const USER_CODE_LENGTH = 4; // Độ dài của mã người dùng
 
     // Các trạng thái của người dùng
     public const USER_STATUSES = [
@@ -45,28 +40,6 @@ class AppConstants
     public const TYPE_VATTU                 = 2; // Mã loại đơn: Vật tư
     public const TYPE_GIOLAM                = 3; // Mã loại đơn: Giờ làm
     public const TYPE_CHIPHICONGTAC         = 4; // Mã loại đơn: Chi phí công tác
-    public const LEAVES_PER_PAGE            = 15; // Số lượng đơn trên mỗi trang
-    public const PAGINATION_NEARBY_PAGES    = 2; // Số lượng trang gần nhất hiển thị trong phân trang
-    public const CANCEL_REASON_MAX_BYTES    = 65535; // Số byte tối đa cho lý do hủy đơn
-    public const ATTACHMENT_ACCEPT          = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf'; // Các loại tệp đính kèm được chấp nhận
-    public const ATTACHMENT_MAX_MB          = 10; // Kích thước tối đa của tệp đính kèm (MB)
-    public const ATTACHMENT_RANDOM_BYTES    = 16; // Số byte ngẫu nhiên để tạo tên tệp đính kèm
-    public const ATTACHMENT_TEMP_DIRECTORY  = 'temp/leaves'; // Thư mục file tạm trên disk local riêng tư.
-    public const ATTACHMENT_TEMP_TTL        = 86400; // Thời gian tồn tại của file tạm tính bằng giây, tương đương 24 giờ.
-    public const TITLE_MAX_LENGTH           = 255; // Độ dài tối đa của tiêu đề đơn
-    public const CONTENT_MAX_BYTES          = 65535; // Số byte tối đa của nội dung đơn
-    public const ATTACHMENT_NAME_MAX_LENGTH = 255; // Độ dài tối đa của tên tệp đính kèm
-
-    // Các loại tệp đính kèm được chấp nhận
-    public const ATTACHMENT_ALLOWED_TYPES = [
-        'jpg'  => ['image/jpeg'],
-        'jpeg' => ['image/jpeg'],
-        'png'  => ['image/png'],
-        'gif'  => ['image/gif'],
-        'webp' => ['image/webp'],
-        'bmp'  => ['image/bmp', 'image/x-ms-bmp'],
-        'pdf'  => ['application/pdf'],
-    ];
 
     // Các loại đơn
     public const LEAVE_TYPES = [

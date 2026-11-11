@@ -38,7 +38,7 @@ class LeaveCreatedMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'leave-created-mail',
+            view: 'mails.leave-created',
             with: ['leaveType' => AppConstants::LEAVE_TYPES[(int) $this->values['leave_type']]],
         );
     }

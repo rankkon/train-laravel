@@ -1,19 +1,16 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | Sanshin</title>
-    <link rel="stylesheet" href="{{ asset('css/common.css') }}?v={{ filemtime(public_path('css/common.css')) }}">
-    <link rel="stylesheet" href="{{ asset('css/leave_list.css') }}?v={{ filemtime(public_path('css/leave_list.css')) }}">
-</head>
-<body class="leave-list-page leave-list-screen">
-    <header class="site-header">
-        <span class="site-brand">Sanshin</span>
-        <span class="site-description">Hệ thống quản lý đơn</span>
-    </header>
+@extends('layouts.base')
 
-    @include('sidebar', ['sidebarFormId' => ''])
+@section('title', 'Dashboard')
+@section('body-class', 'leave-list-page leave-list-screen')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/leave_list.css') }}?v={{ filemtime(public_path('css/leave_list.css')) }}">
+@endpush
+
+@section('body')
+    @include('layouts.header')
+
+    @include('components.sidebar')
 
     <main class="leave-list">
         <div class="leave-list-toolbar"></div>
@@ -40,7 +37,7 @@
                                 <td>{{ $leaves->firstItem() + $loop->index }}</td> {{-- STT tiếp tục theo số trang đang xem. --}}
                                 <td>{{ $leave->full_name }}</td>
                                 <td>{{ $leaveTypes[$leave->leave_type] }}</td>
-                                <td>{{ substr((string) $leave->getRawOriginal('created_at'), 0, 10) }}</td>
+                                <td>{{ $leave->created_at->toDateString() }}</td>
                                 <td>{{ $leaveStatuses[$leave->status] }}</td>
                                 <td>{{ $leave->getRawOriginal('end_date') }}</td>
                                 <td>
@@ -57,7 +54,6 @@
             </div>
         </div>
 
-        {{ $leaves->links('pagination') }} {{-- Dùng giao diện phân trang chung. --}}
+        {{ $leaves->links('components.pagination') }} {{-- Dùng giao diện phân trang chung. --}}
     </main>
-</body>
-</html>
+@endsection
