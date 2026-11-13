@@ -76,7 +76,7 @@ class UserController extends Controller
     // Hiện form thêm người dùng với vai trò, phòng ban được chọn
     public function create(Request $request): View
     {
-        return view('users.form', ['user' => new User] + $this->formOptions($request->user()));
+        return view('users.form', ['user' => new User(['birth_date' => today()])] + $this->formOptions($request->user()));
     }
 
     // Hiện form sửa người dùng
@@ -89,8 +89,9 @@ class UserController extends Controller
     public function store(Request $request): JsonResponse
     {
         User::create($this->validatedData($request) + [
-            'status'     => AppConstants::STATUS_ACTIVE,
-            'created_at' => now(),
+            'password_hash' => Hash::make('123456'),
+            'status'        => AppConstants::STATUS_ACTIVE,
+            'created_at'    => now(),
         ]);
 
         return response()->json(['redirect' => route('users.index')]);
@@ -166,17 +167,17 @@ class UserController extends Controller
             'username'   => $user ? 'exclude' : 'required|max:50|unique:users,username',
             'full_name'  => 'required|max:100',
             'password'   => [
-                $user ? 'nullable' : 'required',
+                $user ? 'nullable' : 'exclude',
                 Password::min(8)->letters()->numbers()->symbols(),
             ],
-            'email'      => ['nullable', 'email', 'max:254', Rule::unique('users', 'email')->ignore($user)],
-            'birth_date' => 'nullable|before:today',
+            'email'      => [$user ? 'nullable' : 'required', 'email', 'max:254', Rule::unique('users', 'email')->ignore($user)],
+            'birth_date' => 'nullable|before_or_equal:today',
             'user_type'  => ['required', Rule::in(array_keys($options['userTypes']))],
             'department' => ['required', Rule::in(array_keys($options['departments']))],
         ]);
 
         // Chỉ thay mật khẩu nếu có nhập mật khẩu mới
-        if ($request->filled('password')) {
+        if ($user && $request->filled('password')) {
             $data['password_hash'] = Hash::make($data['password']);
         }
         unset($data['password']);

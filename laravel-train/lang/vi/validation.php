@@ -15,12 +15,13 @@ return [
             'required' => '※Vui lòng nhập mật khẩu.',
         ],
         'email'         => [
-            'email'  => '※Email không đúng định dạng.',
-            'max'    => '※Email không được quá :max ký tự.',
-            'unique' => '※Email đã được sử dụng.',
+            'required' => '※Vui lòng nhập email.',
+            'email'    => '※Email không đúng định dạng.',
+            'max'      => '※Email không được quá :max ký tự.',
+            'unique'   => '※Email đã được sử dụng.',
         ],
         'birth_date'    => [
-            'before' => '※Ngày sinh không hợp lệ.',
+            'before_or_equal' => '※Ngày sinh không hợp lệ.',
         ],
         'user_type'     => [
             'in' => '※Vui lòng chọn loại người dùng trong danh sách.',
