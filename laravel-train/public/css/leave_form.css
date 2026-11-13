@@ -156,15 +156,12 @@
 
 .leave-file-control input {
     padding-right: 36px;
+    color: transparent;
     cursor: pointer;
 }
 
 .leave-file-control input::file-selector-button {
     display: none;
-}
-
-.leave-file-control input:invalid {
-    color: transparent;
 }
 
 .leave-file-name {
@@ -180,8 +177,20 @@
     pointer-events: none;
 }
 
-.leave-file-control input:valid ~ .leave-file-name {
-    display: none;
+.leave-file-preview {
+    position: fixed;
+    z-index: 1000;
+    box-sizing: content-box;
+    width: auto;
+    height: auto;
+    max-width: min(500px, calc(100vw - 32px));
+    max-height: min(500px, calc(100vh - 32px));
+    padding: 4px;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    background: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
 }
 
 .leave-upload-icon {

@@ -17,7 +17,7 @@ class User extends Authenticatable
     protected $rememberTokenName = '';  // Không sử dụng thuộc tính remember_token
 
     protected $fillable = [
-        'username', 'full_name', 'password_hash', 'email', 'birth_date',
+        'username', 'full_name', 'password_hash', 'password_status', 'email', 'birth_date',
         'user_type', 'department', 'status', 'created_at', 'update_at',
     ];
 
@@ -25,12 +25,13 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'status'     => 'integer',
-            'user_type'  => 'integer',
-            'department' => 'integer',
-            'birth_date' => 'date:Y-m-d',
-            'created_at' => 'datetime:Y-m-d H:i:s',
-            'update_at'  => 'datetime:Y-m-d H:i:s',
+            'status'          => 'integer',
+            'password_status' => 'integer',
+            'user_type'       => 'integer',
+            'department'      => 'integer',
+            'birth_date'      => 'date:Y-m-d',
+            'created_at'      => 'datetime:Y-m-d H:i:s',
+            'update_at'       => 'datetime:Y-m-d H:i:s',
         ];
     }
 

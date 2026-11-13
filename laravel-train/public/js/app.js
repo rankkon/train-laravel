@@ -15,7 +15,7 @@ confirmation.querySelectorAll('[data-dismiss]').forEach(button => {
 
 confirmButton.addEventListener('click', () => {
     confirmation.close();
-    confirmAction();
+    confirmAction?.();
 });
 
 async function sendRequest(url, options = {}) {
@@ -70,14 +70,20 @@ if (recordForm) {
         showConfirmation(confirmation.dataset.save, async () => {
             clearErrors();
             try {
-                const response = await sendRequest(recordForm.action, {method: 'POST', body: new FormData(recordForm)});
-                const result   = await response.json();
-                allowLeave     = true;
-                window.location.assign(result.redirect);
+                await withLoading(async () => {
+                    const response = await sendRequest(recordForm.action, {method: 'POST', body: new FormData(recordForm)});
+                    const result   = await response.json();
+                    allowLeave     = true;
+                    window.location.assign(result.redirect);
+                });
             } catch (error) {
                 const errors = error.errors ?? {form: [confirmation.dataset.error]};
                 for (const [field, messages] of Object.entries(errors)) {
                     const element       = recordForm.querySelector(`[data-form-error="${field}"]`);
+                    if (!element) {
+                        showConfirmation(messages[0]);
+                        return;
+                    }
                     element.textContent = messages[0];
                     element.hidden      = false;
                     recordForm.elements.namedItem(field)?.classList.add(recordForm.dataset.errorClass);

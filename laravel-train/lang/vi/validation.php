@@ -1,7 +1,12 @@
 <?php
 
 return [
-    'custom' => [
+    'password' => [
+        'letters' => '※Mật khẩu phải có ít nhất một chữ cái.',
+        'numbers' => '※Mật khẩu phải có ít nhất một chữ số.',
+        'symbols' => '※Mật khẩu phải có ít nhất một ký tự đặc biệt.',
+    ],
+    'custom'   => [
         'username'      => [
             'required' => '※Vui lòng nhập tên đăng nhập.',
             'max'      => '※Tên đăng nhập không được quá :max ký tự.',
@@ -12,7 +17,9 @@ return [
             'max'      => '※Tên người dùng không được quá :max ký tự.',
         ],
         'password'      => [
-            'required' => '※Vui lòng nhập mật khẩu.',
+            'required'  => '※Vui lòng nhập mật khẩu.',
+            'min'       => '※Mật khẩu phải có ít nhất :min ký tự.',
+            'confirmed' => '※Xác nhận mật khẩu không khớp.',
         ],
         'email'         => [
             'required' => '※Vui lòng nhập email.',

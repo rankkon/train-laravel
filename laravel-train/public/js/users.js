@@ -34,21 +34,23 @@ async function loadList(url) {
 
 async function changeStatus(url, userIds = null) {
     try {
-        const options = {method: 'PATCH'};
-        if (userIds) {
-            options.headers = {'Content-Type': 'application/json'};
-            options.body    = JSON.stringify({user_ids: userIds});
-        }
-        const response = await sendRequest(url, options);
-        const result   = await response.json();
-        if (result.redirect) {
-            window.location.assign(result.redirect);
-            return;
-        }
-        if (currentUrl.searchParams.has('sort')) currentUrl.searchParams.delete('page');
-        currentUrl.searchParams.delete('sort');
-        currentUrl.searchParams.delete('direction');
-        await loadList(currentUrl);
+        await withLoading(async () => {
+            const options = {method: 'PATCH'};
+            if (userIds) {
+                options.headers = {'Content-Type': 'application/json'};
+                options.body    = JSON.stringify({user_ids: userIds});
+            }
+            const response = await sendRequest(url, options);
+            const result   = await response.json();
+            if (result.redirect) {
+                window.location.assign(result.redirect);
+                return;
+            }
+            if (currentUrl.searchParams.has('sort')) currentUrl.searchParams.delete('page');
+            currentUrl.searchParams.delete('sort');
+            currentUrl.searchParams.delete('direction');
+            await loadList(currentUrl);
+        });
     } catch {
         showError();
     }

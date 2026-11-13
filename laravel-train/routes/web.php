@@ -20,6 +20,7 @@ Route::get('/', function (): RedirectResponse {
 // Các route dành cho người dùng chưa đăng nhập
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/login/password', [AuthController::class, 'setPassword'])->name('login.password');
 
 // Các route nghiệp vụ yêu cầu đăng nhập
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -39,6 +40,7 @@ Route::get('/leaves', [LeaveController::class, 'index'])->name('leaves.index');
 Route::get('/leaves/create', [LeaveController::class, 'create'])->name('leaves.create'); // mở form tạo đơn
 Route::post('/leaves', [LeaveController::class, 'store'])->name('leaves.store');
 Route::get('/leaves/{leave}/edit', [LeaveController::class, 'edit'])->name('leaves.edit');
+Route::get('/leaves/{leave}/preview', [LeaveController::class, 'preview'])->name('leaves.preview');
 Route::put('/leaves/{leave}', [LeaveController::class, 'update'])->name('leaves.update');
 Route::patch('/leaves/{leave}/approve', [LeaveController::class, 'approve'])->name('leaves.approve');
 Route::patch('/leaves/{leave}/cancel', [LeaveController::class, 'cancel'])->name('leaves.cancel');
