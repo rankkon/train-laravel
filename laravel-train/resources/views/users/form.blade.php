@@ -29,29 +29,30 @@
                         maxlength="100" required>
                     <p class="user-field-error" data-form-error="full_name" hidden></p>
                 </div>
+                @if ($user->exists)
+                    <div class="user-form-field">
+                        <label for="password">Mật khẩu mới</label>
+                        {{-- Khi sửa, đây là mật khẩu mới; để trống sẽ giữ mật khẩu hiện có. --}}
+                        <div class="password-control">
+                            <input type="password" id="password" name="password" minlength="8">
+                            @include('components.password-toggle')
+                        </div>
+                        <p class="user-field-error" data-form-error="password" hidden></p>
+                    </div>
+                @endif
                 <div class="user-form-field">
-                    <label for="password">
-                        @if ($user->exists)
-                            Mật khẩu mới
-                        @else
-                            Mật khẩu <span class="required-marker">*</span>
+                    <label for="email">
+                        Email
+                        @if (!$user->exists)
+                            <span class="required-marker">*</span>
                         @endif
                     </label>
-                    {{-- Khi sửa, đây là mật khẩu mới; để trống sẽ giữ mật khẩu hiện có. --}}
-                    <div class="password-control">
-                        <input type="password" id="password" name="password" minlength="8" @required(!$user->exists)>
-                        @include('components.password-toggle')
-                    </div>
-                    <p class="user-field-error" data-form-error="password" hidden></p>
-                </div>
-                <div class="user-form-field">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="{{ $user->email }}" maxlength="254">
+                    <input type="email" id="email" name="email" value="{{ $user->email }}" maxlength="254" @required(!$user->exists)>
                     <p class="user-field-error" data-form-error="email" hidden></p>
                 </div>
                 <div class="user-form-field user-form-date">
                     <label for="birth-date">Ngày sinh</label>
-                    <input type="date" id="birth-date" name="birth_date" value="{{ $user->birth_date?->format('Y-m-d') }}" max="{{ now()->subDay()->toDateString() }}">
+                    <input type="date" id="birth-date" name="birth_date" value="{{ $user->birth_date?->format('Y-m-d') }}" max="{{ today()->toDateString() }}">
                     <p class="user-field-error" data-form-error="birth_date" hidden></p>
                 </div>
                 <div class="user-form-field">

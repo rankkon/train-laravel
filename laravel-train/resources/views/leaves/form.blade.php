@@ -82,6 +82,7 @@
                     {{-- Ô file không được điền lại bằng HTML; tên file đang giữ được hiển thị từ dữ liệu server. --}}
                     <div class="leave-file-control">
                         <input type="file" id="leave-attachment" name="attachment" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.pdf"
+                            data-preview-url="{{ $leave->exists ? route('leaves.preview', $leave) : '' }}"
                             @required(!$leave->exists) title="{{ __('messages.attachment_hint') }}">
                         <span id="leave-file-name" class="leave-file-name" data-original-name="{{ $leave->attachment_original_name }}"
                             title="{{ $leave->attachment_original_name }}">{{ $leave->attachment_original_name }}</span>
@@ -97,6 +98,7 @@
             </div>
         </form>
     </main>
+    <img id="leave-file-preview" class="leave-file-preview" alt="Ảnh xem trước tệp đính kèm" hidden>
 @endsection
 
 @push('scripts')

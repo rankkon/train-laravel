@@ -17,13 +17,14 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeaveController extends Controller
 {
     public function __construct()
     {
         $this->middleware([ActiveUser::class, 'auth']);
-        $this->middleware('can:update,leave')->only(['edit', 'update']);
+        $this->middleware('can:update,leave')->only(['edit', 'update', 'preview']);
         $this->middleware('can:process,leave')->only(['approve', 'cancel']);
     }
 
@@ -109,6 +110,15 @@ class LeaveController extends Controller
             'leave'     => $leave,
             'approvers' => $this->approvers($request->user()),
         ]);
+    }
+
+    // Xem trước file đính kèm
+    public function preview(LeaveRequest $leave): StreamedResponse
+    {
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($leave->attachment_path), 404);
+
+        return $disk->response($leave->attachment_path);
     }
 
     // Tạo đơn mới và gửi thông báo cho người duyệt

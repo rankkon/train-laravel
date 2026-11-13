@@ -64,4 +64,7 @@
             </form>
         </main>
     </div>
+    @if (session()->has('password_setup_user_id'))
+        @include('auth.set-password')
+    @endif
 @endsection

@@ -1,19 +1,70 @@
 const leaveForm = document.getElementById('leave-form');
 if (leaveForm) {
-    const attachment = document.getElementById('leave-attachment');
-    const filename   = document.getElementById('leave-file-name');
-    const startDate  = document.getElementById('leave-start-date');
-    const endDate    = document.getElementById('leave-end-date');
+    const attachment  = document.getElementById('leave-attachment');
+    const filename    = document.getElementById('leave-file-name');
+    const startDate   = document.getElementById('leave-start-date');
+    const endDate     = document.getElementById('leave-end-date');
+    const fileControl = attachment.closest('.leave-file-control');
+    const preview     = document.getElementById('leave-file-preview');
+    const storedImage = /\.(jpe?g|png|gif|webp|bmp)$/i.test(filename.dataset.originalName) ? attachment.dataset.previewUrl : '';
+    const pointer     = {x: 0, y: 0};
+    let objectUrl;
 
-    function updateFields() {
-        filename.textContent = attachment.files[0]?.name ?? filename.dataset.originalName;
+    function updateAttachment() {
+        const file = attachment.files[0];
+
+        filename.textContent = file?.name ?? filename.dataset.originalName;
         filename.title       = filename.textContent;
-        endDate.min          = startDate.value;
+        preview.hidden       = true;
+
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = file?.type.startsWith('image/') ? URL.createObjectURL(file) : '';
+
+        const source = file ? objectUrl : storedImage;
+        if (source) preview.src = source;
+        else preview.removeAttribute('src');
     }
 
-    leaveForm.addEventListener('change', updateFields);
-    leaveForm.addEventListener('reset', () => queueMicrotask(updateFields));
-    updateFields();
+    function updateDates() {
+        endDate.min = startDate.value;
+    }
+
+    function showPreview(event) {
+        if (event) {
+            pointer.x = event.clientX;
+            pointer.y = event.clientY;
+        }
+        if (!fileControl.matches(':hover') || !preview.complete || !preview.naturalWidth) return;
+
+        const scale = Math.min(
+            Math.min(500, window.innerWidth - 32) / preview.naturalWidth,
+            Math.min(500, window.innerHeight - 32) / preview.naturalHeight,
+        );
+
+        preview.style.width  = `${preview.naturalWidth * scale}px`;
+        preview.style.height = `${preview.naturalHeight * scale}px`;
+        preview.hidden       = false;
+
+        const left = pointer.x + 16 + preview.offsetWidth > window.innerWidth ? pointer.x - preview.offsetWidth - 16 : pointer.x + 16;
+        const top  = pointer.y + 16 + preview.offsetHeight > window.innerHeight ? pointer.y - preview.offsetHeight - 16 : pointer.y + 16;
+
+        preview.style.left = `${Math.max(8, left)}px`;
+        preview.style.top  = `${Math.max(8, top)}px`;
+    }
+
+    fileControl.addEventListener('mouseenter', showPreview);
+    fileControl.addEventListener('mousemove', showPreview);
+    fileControl.addEventListener('mouseleave', () => preview.hidden = true);
+    preview.addEventListener('load', () => showPreview());
+    preview.addEventListener('error', () => preview.hidden = true);
+    attachment.addEventListener('change', updateAttachment);
+    startDate.addEventListener('change', updateDates);
+    leaveForm.addEventListener('reset', () => queueMicrotask(() => {
+        updateAttachment();
+        updateDates();
+    }));
+    updateAttachment();
+    updateDates();
 } else {
     const leaveList    = document.getElementById('leave-list');
     const message      = document.getElementById('leave-message');
@@ -36,17 +87,19 @@ if (leaveForm) {
 
     async function processLeave(url, reason) {
         try {
-            const options = {method: 'PATCH'};
-            if (reason !== undefined) {
-                options.headers = {'Content-Type': 'application/json'};
-                options.body    = JSON.stringify({cancel_reason: reason});
-            }
-            await sendRequest(url, options);
-            cancelDialog.close();
-            if (currentUrl.searchParams.has('sort')) currentUrl.searchParams.delete('page');
-            currentUrl.searchParams.delete('sort');
-            currentUrl.searchParams.delete('direction');
-            await loadList(currentUrl);
+            await withLoading(async () => {
+                const options = {method: 'PATCH'};
+                if (reason !== undefined) {
+                    options.headers = {'Content-Type': 'application/json'};
+                    options.body    = JSON.stringify({cancel_reason: reason});
+                }
+                await sendRequest(url, options);
+                cancelDialog.close();
+                if (currentUrl.searchParams.has('sort')) currentUrl.searchParams.delete('page');
+                currentUrl.searchParams.delete('sort');
+                currentUrl.searchParams.delete('direction');
+                await loadList(currentUrl);
+            });
         } catch (error) {
             if (cancelDialog.open) {
                 cancelError.textContent = error.errors?.cancel_reason?.[0] ?? confirmation.dataset.error;

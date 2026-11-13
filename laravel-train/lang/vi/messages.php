@@ -3,6 +3,8 @@
 return [
     'login_failed'                  => '※Tên đăng nhập hoặc mật khẩu lỗi. Vui lòng thử lại！',
     'account_locked'                => '※Tài khoản của bạn đã bị khóa.',
+    'password_setup_title'          => 'Đặt mật khẩu mới',
+    'password_setup_description'    => 'Vui lòng đặt mật khẩu mới cho các lần đăng nhập sau. Mật khẩu cần ít nhất 8 ký tự, gồm chữ, số và ký tự đặc biệt.',
     'no_leaves_found'               => 'Không có đơn phù hợp.',
     'no_users_found'                => 'Không có người dùng phù hợp.',
     'confirm_user_lock'             => 'Bạn có chắc chắn muốn khóa tài khoản này?',
@@ -14,6 +16,7 @@ return [
     'confirm_clear'                 => 'Bạn có chắc chắn hủy các thay đổi và khôi phục dữ liệu ban đầu?',
     'confirm_logout_with_changes'   => 'Bạn có chắc chắn hủy các thay đổi và đăng xuất?',
     'page_error'                    => 'Có lỗi xảy ra',
+    'processing'                    => 'Đang xử lý, vui lòng chờ…',
     'confirm_approve'               => 'Bạn có chắc chắn duyệt đơn này?',
     'attachment_hint'               => '※JPG/JPEG, PNG, GIF, WebP, BMP hoặc PDF.',
     'approver_unavailable'          => '※Chưa có người duyệt đang hoạt động phù hợp với tài khoản của bạn.',

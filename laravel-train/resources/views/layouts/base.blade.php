@@ -10,6 +10,7 @@
 </head>
 <body class="@yield('body-class')" @yield('body-attributes')>
     @yield('body')
+    @include('components.loading')
     @stack('scripts')
 </body>
 </html>

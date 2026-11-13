@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Constants\AppConstants;
 use App\Http\Middleware\ActiveUser;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -17,7 +19,7 @@ class AuthController extends Controller
     public function __construct()
     {
         $this->middleware(ActiveUser::class)->except('logout');
-        $this->middleware('guest')->only(['showLogin', 'login']);
+        $this->middleware('guest')->only(['showLogin', 'login', 'setPassword']);
     }
 
     // Xóa phiên đăng nhập và chuyển về trang login
@@ -44,6 +46,8 @@ class AuthController extends Controller
     // Kiểm tra thông tin và đăng nhập
     public function login(Request $request): View|RedirectResponse
     {
+        $request->session()->forget('password_setup_user_id'); // Bỏ chờ đặt lại mật khẩu của lần login trước
+
         if ($request->input('action') === 'clear') {
             return redirect()->route('login', status: 303); // Mở lại form đăng nhập mặc định
         }
@@ -68,6 +72,8 @@ class AuthController extends Controller
                 $loginErrorMessage = __('messages.account_locked');
             } elseif (! Hash::check($password, $user->password_hash)) { // Kiểm tra mật khẩu
                 $passwordError = true;
+            } elseif ($user->password_status === 0) {
+                $request->session()->put('password_setup_user_id', $user->id); // Ghi tài khoản mới chờ đặt lại mật khẩu khi login
             } else {
                 Auth::login($user); // Đăng nhập thành công
 
@@ -76,5 +82,25 @@ class AuthController extends Controller
         }
 
         return view('auth.login', compact('username', 'usernameError', 'passwordError', 'loginErrorMessage'));
+    }
+
+    // Lưu mật khẩu người dùng đặt lần đầu
+    public function setPassword(Request $request): JsonResponse
+    {
+        $user = User::whereKey($request->session()->get('password_setup_user_id'))
+            ->where('status', AppConstants::STATUS_ACTIVE)
+            ->where('password_status', 0)->firstOrFail();
+        $data = $request->validate([
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->symbols()],
+        ]);
+
+        $user->update([
+            'password_hash'   => Hash::make($data['password']),
+            'password_status' => 1,
+            'update_at'       => now(),
+        ]);
+        $request->session()->forget('password_setup_user_id');
+
+        return response()->json(['redirect' => route('login')]);
     }
 }
