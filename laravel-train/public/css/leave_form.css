@@ -68,12 +68,15 @@
 }
 
 .leave-form-field > label {
+    position: relative;
     padding-top: 6px;
+    padding-left: 16px;
     line-height: 19px;
 }
 
 .leave-form .required-marker {
-    margin-left: 4px;
+    position: absolute;
+    left: 0;
     color: #BD0101;
     font-size: 16px;
     font-weight: 700;
@@ -147,9 +150,17 @@
     cursor: pointer;
 }
 
+.leave-attachment-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
 .leave-file-control {
     position: relative;
     width: 220px;
+    min-width: 0;
     max-width: 100%;
     height: 32px;
 }
@@ -177,20 +188,54 @@
     pointer-events: none;
 }
 
-.leave-file-preview {
-    position: fixed;
-    z-index: 1000;
-    box-sizing: content-box;
-    width: auto;
-    height: auto;
-    max-width: min(500px, calc(100vw - 32px));
-    max-height: min(500px, calc(100vh - 32px));
-    padding: 4px;
+.leave-preview-button {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    padding: 5px;
     border: 1px solid #CCCCCC;
     border-radius: 4px;
     background: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
+    color: #000000;
+    cursor: pointer;
+}
+
+.leave-preview-button svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.leave-preview-button:hover {
+    background: #EAF5FC;
+}
+
+.leave-preview-dialog {
+    box-sizing: border-box;
+    width: 500px;
+    height: 500px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #000000;
+}
+
+.leave-preview-dialog[open] {
+    display: grid;
+    place-items: center;
+}
+
+.leave-preview-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.leave-file-preview {
+    max-width: 100%;
+    max-height: 100%;
 }
 
 .leave-upload-icon {

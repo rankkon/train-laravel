@@ -57,8 +57,7 @@ return [
             'after_or_equal' => '※Ngày kết thúc phải cùng hoặc sau ngày bắt đầu.',
         ],
         'attachment'    => [
-            'required' => '※Vui lòng chọn một tệp ảnh hoặc PDF.',
-            'mimes'    => '※Chỉ chấp nhận JPG/JPEG, PNG, GIF, WebP, BMP hoặc PDF.',
+            'mimes'    => '※Chỉ chấp nhận ảnh JPG/JPEG, PNG, GIF, WebP hoặc BMP.',
             'uploaded' => '※Tải tệp không thành công. Vui lòng chọn lại tệp.',
         ],
         'cancel_reason' => [
