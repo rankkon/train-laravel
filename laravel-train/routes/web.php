@@ -20,9 +20,10 @@ Route::get('/', function (): RedirectResponse {
 // Các route dành cho người dùng chưa đăng nhập
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
-Route::post('/login/password', [AuthController::class, 'setPassword'])->name('login.password');
 
 // Các route nghiệp vụ yêu cầu đăng nhập
+Route::get('/password', [AuthController::class, 'showPassword'])->name('password.edit');
+Route::post('/password', [AuthController::class, 'setPassword'])->name('password.update');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 // Nhóm quản lý người dùng gồm danh sách, khóa/mở khóa và form thêm/sửa.

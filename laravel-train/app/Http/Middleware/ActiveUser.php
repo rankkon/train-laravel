@@ -23,6 +23,10 @@ class ActiveUser
             return redirect()->route('login', status: 303);
         }
 
+        if ($user?->password_status === 0 && ! $request->routeIs('password.*')) {
+            return redirect()->route('password.edit', status: 303);
+        }
+
         return $next($request);
     }
 }

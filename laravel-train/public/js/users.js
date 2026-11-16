@@ -80,10 +80,9 @@ userList.addEventListener('click', event => {
 });
 userList.addEventListener('change', event => {
     if (event.target.name === 'status') {
-        const filter = event.target.closest('details');
+        const filter                                = event.target.closest('details');
         filter.querySelector('summary').textContent = event.target.nextElementSibling.textContent;
         filter.open                                 = false;
-        event.target.form.requestSubmit();
     }
     if (event.target.id === 'select-all-users') {
         userList.querySelectorAll('input[name="user_ids[]"]:not(:disabled)').forEach(input => { input.checked = event.target.checked; });

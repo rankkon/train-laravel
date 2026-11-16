@@ -19,7 +19,8 @@ class AuthController extends Controller
     public function __construct()
     {
         $this->middleware(ActiveUser::class)->except('logout');
-        $this->middleware('guest')->only(['showLogin', 'login', 'setPassword']);
+        $this->middleware('guest')->only(['showLogin', 'login']);
+        $this->middleware('auth')->only(['showPassword', 'setPassword']);
     }
 
     // Xóa phiên đăng nhập và chuyển về trang login
@@ -43,11 +44,16 @@ class AuthController extends Controller
         ]);
     }
 
+    public function showPassword(Request $request): View|RedirectResponse
+    {
+        return $request->user()->password_status === 0
+            ? view('auth.set-password')
+            : redirect()->route('dashboard');
+    }
+
     // Kiểm tra thông tin và đăng nhập
     public function login(Request $request): View|RedirectResponse
     {
-        $request->session()->forget('password_setup_user_id'); // Bỏ chờ đặt lại mật khẩu của lần login trước
-
         if ($request->input('action') === 'clear') {
             return redirect()->route('login', status: 303); // Mở lại form đăng nhập mặc định
         }
@@ -58,8 +64,8 @@ class AuthController extends Controller
         ]);
         $usernameError     = $validator->errors()->has('username');
         $passwordError     = $validator->errors()->has('password');
-        $username         = $usernameError ? '' : $request->input('username');
-        $password         = $request->input('password');
+        $username          = $usernameError ? '' : $request->input('username');
+        $password          = $request->input('password');
         $loginErrorMessage = __('messages.login_failed');
 
         if (! $usernameError && ! $passwordError) {
@@ -72,12 +78,10 @@ class AuthController extends Controller
                 $loginErrorMessage = __('messages.account_locked');
             } elseif (! Hash::check($password, $user->password_hash)) { // Kiểm tra mật khẩu
                 $passwordError = true;
-            } elseif ($user->password_status === 0) {
-                $request->session()->put('password_setup_user_id', $user->id); // Ghi tài khoản mới chờ đặt lại mật khẩu khi login
             } else {
                 Auth::login($user); // Đăng nhập thành công
 
-                return redirect()->route('dashboard', status: 303);
+                return redirect()->route($user->password_status === 0 ? 'password.edit' : 'dashboard', status: 303);
             }
         }
 
@@ -87,9 +91,8 @@ class AuthController extends Controller
     // Lưu mật khẩu người dùng đặt lần đầu
     public function setPassword(Request $request): JsonResponse
     {
-        $user = User::whereKey($request->session()->get('password_setup_user_id'))
-            ->where('status', AppConstants::STATUS_ACTIVE)
-            ->where('password_status', 0)->firstOrFail();
+        $user = $request->user();
+        abort_unless($user->password_status === 0, 403);
         $data = $request->validate([
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->symbols()],
         ]);
@@ -99,7 +102,9 @@ class AuthController extends Controller
             'password_status' => 1,
             'update_at'       => now(),
         ]);
-        $request->session()->forget('password_setup_user_id');
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['redirect' => route('login')]);
     }

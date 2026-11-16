@@ -31,16 +31,11 @@
                     ] as $column => $label)
                         @php
                             $isSorted       = $sortColumn === $column;
-                            $nextDirection  = 'asc';
-                            $sortIcon       = '↕';
-                            $ariaSort       = 'none';
+                            $nextDirection  = $isSorted ? ($sortDirection === 'asc' ? 'desc' : '') : 'asc';
+                            $sortIcon       = $isSorted ? ($sortDirection === 'asc' ? '↑' : '↓') : '↕';
+                            $ariaSort       = $isSorted ? ($sortDirection === 'asc' ? 'ascending' : 'descending') : 'none';
                             $sortParameters = ['q' => $search];
                             $sortAction     = 'trở về thứ tự mặc định';
-                            if ($isSorted) {
-                                $nextDirection = $sortDirection === 'asc' ? 'desc' : '';
-                                $sortIcon      = $sortDirection === 'asc' ? '↑' : '↓';
-                                $ariaSort      = $sortDirection === 'asc' ? 'ascending' : 'descending';
-                            }
                             if ($nextDirection !== '') {
                                 $sortParameters['sort']      = $column;
                                 $sortParameters['direction'] = $nextDirection;
@@ -83,9 +78,7 @@
                         <td>
                             @if ($canProcess || $canEdit)
                                 <div class="leave-actions">
-
                                     @if ($canProcess)
-
                                         <button type="button" class="leave-approve" title="Duyệt" data-approve-url="{{ route('leaves.approve', $leave) }}">✓</button>
                                     @endif
                                     @if ($canEdit)
