@@ -1,13 +1,13 @@
 const leaveForm = document.getElementById('leave-form');
 if (leaveForm) {
-    const attachment  = document.getElementById('leave-attachment');
-    const filename    = document.getElementById('leave-file-name');
-    const startDate   = document.getElementById('leave-start-date');
-    const endDate     = document.getElementById('leave-end-date');
-    const fileControl = attachment.closest('.leave-file-control');
-    const preview     = document.getElementById('leave-file-preview');
-    const storedImage = /\.(jpe?g|png|gif|webp|bmp)$/i.test(filename.dataset.originalName) ? attachment.dataset.previewUrl : '';
-    const pointer     = {x: 0, y: 0};
+    const attachment    = document.getElementById('leave-attachment');
+    const filename      = document.getElementById('leave-file-name');
+    const startDate     = document.getElementById('leave-start-date');
+    const endDate       = document.getElementById('leave-end-date');
+    const preview       = document.getElementById('leave-file-preview');
+    const previewButton = document.getElementById('leave-preview-button');
+    const previewDialog = document.getElementById('leave-preview-dialog');
+    const storedImage   = /\.(jpe?g|png|gif|webp|bmp)$/i.test(filename.dataset.originalName) ? attachment.dataset.previewUrl : '';
     let objectUrl;
 
     function updateAttachment() {
@@ -15,7 +15,8 @@ if (leaveForm) {
 
         filename.textContent = file?.name ?? filename.dataset.originalName;
         filename.title       = filename.textContent;
-        preview.hidden       = true;
+        previewButton.hidden = true;
+        previewDialog.close();
 
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         objectUrl = file?.type.startsWith('image/') ? URL.createObjectURL(file) : '';
@@ -29,34 +30,31 @@ if (leaveForm) {
         endDate.min = startDate.value;
     }
 
-    function showPreview(event) {
-        if (event) {
-            pointer.x = event.clientX;
-            pointer.y = event.clientY;
-        }
-        if (!fileControl.matches(':hover') || !preview.complete || !preview.naturalWidth) return;
-
+    function fitPreview() {
         const scale = Math.min(
-            Math.min(500, window.innerWidth - 32) / preview.naturalWidth,
-            Math.min(500, window.innerHeight - 32) / preview.naturalHeight,
+            previewDialog.clientWidth / preview.naturalWidth,
+            previewDialog.clientHeight / preview.naturalHeight,
         );
 
         preview.style.width  = `${preview.naturalWidth * scale}px`;
         preview.style.height = `${preview.naturalHeight * scale}px`;
-        preview.hidden       = false;
-
-        const left = pointer.x + 16 + preview.offsetWidth > window.innerWidth ? pointer.x - preview.offsetWidth - 16 : pointer.x + 16;
-        const top  = pointer.y + 16 + preview.offsetHeight > window.innerHeight ? pointer.y - preview.offsetHeight - 16 : pointer.y + 16;
-
-        preview.style.left = `${Math.max(8, left)}px`;
-        preview.style.top  = `${Math.max(8, top)}px`;
     }
 
-    fileControl.addEventListener('mouseenter', showPreview);
-    fileControl.addEventListener('mousemove', showPreview);
-    fileControl.addEventListener('mouseleave', () => preview.hidden = true);
-    preview.addEventListener('load', () => showPreview());
-    preview.addEventListener('error', () => preview.hidden = true);
+    previewButton.addEventListener('click', () => {
+        previewDialog.showModal();
+        fitPreview();
+    });
+    previewDialog.addEventListener('click', event => {
+        if (event.target === previewDialog) previewDialog.close();
+    });
+    preview.addEventListener('load', () => previewButton.hidden = false);
+    preview.addEventListener('error', () => {
+        previewButton.hidden = true;
+        previewDialog.close();
+    });
+    window.addEventListener('resize', () => {
+        if (previewDialog.open) fitPreview();
+    });
     attachment.addEventListener('change', updateAttachment);
     startDate.addEventListener('change', updateDates);
     leaveForm.addEventListener('reset', () => queueMicrotask(() => {

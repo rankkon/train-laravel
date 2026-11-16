@@ -116,7 +116,7 @@ class LeaveController extends Controller
     public function preview(LeaveRequest $leave): StreamedResponse
     {
         $disk = Storage::disk('local');
-        abort_unless($disk->exists($leave->attachment_path), 404);
+        abort_unless($disk->fileExists($leave->attachment_path), 404);
 
         return $disk->response($leave->attachment_path);
     }
@@ -125,9 +125,11 @@ class LeaveController extends Controller
     public function store(Request $request, LeaveService $leaveService): JsonResponse
     {
         $leave = LeaveRequest::create($this->validatedData($request) + [
-            'user_id'    => $request->user()->id,
-            'status'     => AppConstants::STATUS_NEW,
-            'created_at' => now(),
+            'user_id'                  => $request->user()->id,
+            'status'                   => AppConstants::STATUS_NEW,
+            'created_at'               => now(),
+            'attachment_original_name' => '',
+            'attachment_path'          => '',
         ]);
         $approver = $leave->approver;
         $leaveService->sendMail($approver->email, new LeaveCreatedMail(
@@ -143,7 +145,7 @@ class LeaveController extends Controller
         $oldPath = $leave->attachment_path;
         $leave->update($this->validatedData($request, $leave));
 
-        if ($oldPath !== $leave->attachment_path && ! LeaveRequest::where('attachment_path', $oldPath)->exists()) { // Chỉ xóa file cũ sau khi thay file
+        if ($oldPath && $oldPath !== $leave->attachment_path && ! LeaveRequest::where('attachment_path', $oldPath)->exists()) { // Chỉ xóa file cũ sau khi thay file
             Storage::disk('local')->delete($oldPath);
         }
 
@@ -209,7 +211,7 @@ class LeaveController extends Controller
             'leave_type'  => ['required', Rule::in(array_keys(AppConstants::LEAVE_TYPES))],
             'start_date'  => $leave ? 'required' : 'required|after_or_equal:today',
             'end_date'    => 'required|after_or_equal:start_date',
-            'attachment'  => [$leave ? 'nullable' : 'required', 'mimes:jpg,jpeg,png,gif,webp,bmp,pdf'],
+            'attachment'  => 'nullable|mimes:jpg,jpeg,png,gif,webp,bmp',
         ]);
 
         // Chỉ thay file nếu có chọn file mới 

@@ -79,12 +79,26 @@ userList.addEventListener('click', event => {
     }
 });
 userList.addEventListener('change', event => {
-    if (event.target.id === 'user-status') {
+    if (event.target.name === 'status') {
+        const filter = event.target.closest('details');
+        filter.querySelector('summary').textContent = event.target.nextElementSibling.textContent;
+        filter.open                                 = false;
         event.target.form.requestSubmit();
     }
     if (event.target.id === 'select-all-users') {
         userList.querySelectorAll('input[name="user_ids[]"]:not(:disabled)').forEach(input => { input.checked = event.target.checked; });
     }
     updateSelection();
+});
+document.addEventListener('click', event => {
+    const filter = document.getElementById('user-status');
+    if (!filter.contains(event.target) || event.target.matches('input[name="status"]')) filter.open = false;
+});
+userList.addEventListener('keydown', event => {
+    const filter = document.getElementById('user-status');
+    if (event.key === 'Escape' && filter.open) {
+        filter.open = false;
+        filter.querySelector('summary').focus();
+    }
 });
 window.addEventListener('pageshow', updateSelection);

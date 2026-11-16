@@ -7,11 +7,24 @@
         @endif
         <label for="user-search">Mã/Tên user</label>
         <input type="text" id="user-search" name="q" value="{{ $search }}">
-        <select id="user-status" name="status" class="user-status-filter" aria-label="Trạng thái người dùng">
-            <option value="1" @selected($statusFilter === '1')>Đang hoạt động</option>
-            <option value="0" @selected($statusFilter === '0')>Đã khóa</option>
-            <option value="" @selected($statusFilter === '')>Tất cả</option>
-        </select>
+        @php
+            $statusOptions = [
+                1  => 'Đang hoạt động',
+                0  => 'Đã khóa',
+                '' => 'Tất cả',
+            ];
+        @endphp
+        <details id="user-status" class="user-status-filter">
+            <summary title="Trạng thái người dùng">{{ $statusOptions[$statusFilter] ?? $statusOptions[''] }}</summary>
+            <div class="user-status-options" role="group" aria-label="Trạng thái người dùng">
+                @foreach ($statusOptions as $value => $label)
+                    <label>
+                        <input type="radio" name="status" value="{{ $value }}" @checked($statusFilter === (string) $value)>
+                        <span>{{ $label }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </details>
     </form>
     <div class="leave-list-actions user-list-actions">
         <button type="submit" form="user-search-form" class="leave-search-button">Tìm kiếm</button>

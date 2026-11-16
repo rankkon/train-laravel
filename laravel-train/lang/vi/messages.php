@@ -18,7 +18,7 @@ return [
     'page_error'                    => 'Có lỗi xảy ra',
     'processing'                    => 'Đang xử lý, vui lòng chờ…',
     'confirm_approve'               => 'Bạn có chắc chắn duyệt đơn này?',
-    'attachment_hint'               => '※JPG/JPEG, PNG, GIF, WebP, BMP hoặc PDF.',
+    'attachment_hint'               => '※JPG/JPEG, PNG, GIF, WebP hoặc BMP.',
     'approver_unavailable'          => '※Chưa có người duyệt đang hoạt động phù hợp với tài khoản của bạn.',
     'confirm_save'                  => 'Bạn có chắc chắn lưu lại thay đổi ?',
     'attachment_write_failed'       => '※Không ghi được tệp đính kèm.',

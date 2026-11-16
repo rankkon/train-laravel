@@ -18,13 +18,13 @@
             <div class="user-form-fields">
                 <p class="user-field-error" data-form-error="form" hidden></p>
                 <div class="user-form-field">
-                    <label for="username">Tên đăng nhập <span class="required-marker">*</span></label>
+                    <label for="username"><span class="required-marker">*</span> Tên đăng nhập</label>
                     <input type="text" id="username" name="username" value="{{ $user->username }}"
                         maxlength="50" required @disabled($user->exists)>
                     <p class="user-field-error" data-form-error="username" hidden></p>
                 </div>
                 <div class="user-form-field">
-                    <label for="full-name">Tên người dùng <span class="required-marker">*</span></label>
+                    <label for="full-name"><span class="required-marker">*</span> Tên người dùng</label>
                     <input type="text" id="full-name" name="full_name" value="{{ $user->full_name }}"
                         maxlength="100" required>
                     <p class="user-field-error" data-form-error="full_name" hidden></p>
@@ -42,10 +42,10 @@
                 @endif
                 <div class="user-form-field">
                     <label for="email">
-                        Email
                         @if (!$user->exists)
                             <span class="required-marker">*</span>
                         @endif
+                        Email
                     </label>
                     <input type="email" id="email" name="email" value="{{ $user->email }}" maxlength="254" @required(!$user->exists)>
                     <p class="user-field-error" data-form-error="email" hidden></p>
@@ -56,7 +56,7 @@
                     <p class="user-field-error" data-form-error="birth_date" hidden></p>
                 </div>
                 <div class="user-form-field">
-                    <label for="user-type">Loại người dùng <span class="required-marker">*</span></label>
+                    <label for="user-type"><span class="required-marker">*</span> Loại người dùng</label>
                     <div class="user-select-control">
                         <select id="user-type" name="user_type" required @disabled($user->user_type === \App\Constants\AppConstants::TYPE_ADMIN)>
                             @foreach ($userTypes as $code => $name)
@@ -67,7 +67,7 @@
                     <p class="user-field-error" data-form-error="user_type" hidden></p>
                 </div>
                 <div class="user-form-field">
-                    <label for="department">Phòng ban <span class="required-marker">*</span></label>
+                    <label for="department"><span class="required-marker">*</span> Phòng ban</label>
                     <div class="user-select-control">
                         <select id="department" name="department" required>
                             @foreach ($departments as $code => $name)

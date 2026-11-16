@@ -67,12 +67,15 @@
 }
 
 .user-form-field > label {
+    position: relative;
     padding-top: 6px;
+    padding-left: 16px;
     line-height: 19px;
 }
 
 .user-form .required-marker {
-    margin-left: 4px;
+    position: absolute;
+    left: 0;
     color: #BD0101;
     font-size: 16px;
     font-weight: 700;
