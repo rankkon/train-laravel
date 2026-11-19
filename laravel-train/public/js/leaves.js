@@ -1,3 +1,4 @@
+// Chọn phần xử lý theo trang hiện tại: form đơn hoặc danh sách đơn.
 const leaveForm = document.getElementById('leave-form');
 if (leaveForm) {
     const attachment    = document.getElementById('leave-attachment');
@@ -7,29 +8,72 @@ if (leaveForm) {
     const preview       = document.getElementById('leave-file-preview');
     const previewButton = document.getElementById('leave-preview-button');
     const previewDialog = document.getElementById('leave-preview-dialog');
-    const storedImage   = /\.(jpe?g|png|gif|webp|bmp)$/i.test(filename.dataset.originalName) ? attachment.dataset.previewUrl : '';
     let objectUrl;
 
-    function updateAttachment() {
+    // Kiểm tra định dạng ảnh bằng các byte đầu của file.
+    async function isSupportedImage(file) {
+        const bytes  = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+        const header = String.fromCharCode(...bytes);
+
+        return (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+            || header.startsWith('\x89PNG\r\n\x1a\n')
+            || header.startsWith('GIF87a') || header.startsWith('GIF89a')
+            || (header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP')
+            || header.startsWith('BM');
+    }
+
+    function setAttachmentError(message) {
+        attachment.setCustomValidity(message);
+        showFieldError(attachment.name, message);
+    }
+
+    // Cập nhật tên file, kiểm tra ảnh mới và chuẩn bị ảnh xem trước.
+    async function updateAttachment() {
         const file = attachment.files[0];
 
         filename.textContent = file?.name ?? filename.dataset.originalName;
         filename.title       = filename.textContent;
         previewButton.hidden = true;
         previewDialog.close();
+        preview.removeAttribute('src');
 
         if (objectUrl) URL.revokeObjectURL(objectUrl);
-        objectUrl = file?.type.startsWith('image/') ? URL.createObjectURL(file) : '';
+        objectUrl = '';
+        setAttachmentError('');
+        if (file) attachment.setCustomValidity(attachment.dataset.checkingMessage);
 
-        const source = file ? objectUrl : storedImage;
-        if (source) preview.src = source;
-        else preview.removeAttribute('src');
+        try {
+            if (file) {
+                const supported = await isSupportedImage(file);
+                if (attachment.files[0] !== file) return;
+                if (!supported) {
+                    setAttachmentError(attachment.dataset.invalidMessage);
+                    return;
+                }
+                objectUrl = URL.createObjectURL(file);
+            }
+
+            const source = objectUrl || attachment.dataset.previewUrl;
+            if (!source) return;
+            preview.src = source;
+            await preview.decode();
+            if (attachment.files[0] !== file) return;
+
+            setAttachmentError('');
+            previewButton.hidden = false;
+        } catch {
+            if (file && attachment.files[0] === file) {
+                setAttachmentError(attachment.dataset.invalidMessage);
+            }
+        }
     }
 
+    // Giới hạn ngày kết thúc từ ngày bắt đầu trở đi.
     function updateDates() {
         endDate.min = startDate.value;
     }
 
+    // Co ảnh vừa hộp xem trước và giữ đúng tỷ lệ.
     function fitPreview() {
         const scale = Math.min(
             previewDialog.clientWidth / preview.naturalWidth,
@@ -40,6 +84,7 @@ if (leaveForm) {
         preview.style.height = `${preview.naturalHeight * scale}px`;
     }
 
+    // Mở, đóng và chỉnh ảnh khi kích thước cửa sổ thay đổi.
     previewButton.addEventListener('click', () => {
         previewDialog.showModal();
         fitPreview();
@@ -47,16 +92,12 @@ if (leaveForm) {
     previewDialog.addEventListener('click', event => {
         if (event.target === previewDialog) previewDialog.close();
     });
-    preview.addEventListener('load', () => previewButton.hidden = false);
-    preview.addEventListener('error', () => {
-        previewButton.hidden = true;
-        previewDialog.close();
-    });
     window.addEventListener('resize', () => {
         if (previewDialog.open) fitPreview();
     });
+    // Cập nhật ảnh và giới hạn ngày khi đổi dữ liệu hoặc đặt lại form.
     attachment.addEventListener('change', updateAttachment);
-    startDate.addEventListener('change', updateDates);
+    startDate.addEventListener('input', updateDates);
     leaveForm.addEventListener('reset', () => queueMicrotask(() => {
         updateAttachment();
         updateDates();
@@ -69,10 +110,10 @@ if (leaveForm) {
     const cancelDialog = document.getElementById('cancel-dialog');
     const cancelForm   = document.getElementById('cancel-form');
     const cancelReason = document.getElementById('cancel-reason');
-    const cancelError  = document.getElementById('cancel-error');
     let currentUrl     = new URL(window.location.href);
     let cancelUrl;
 
+    // Tải lại phần HTML danh sách đơn bằng AJAX.
     async function loadList(url) {
         currentUrl     = await refreshList(url, leaveList);
         message.hidden = true;
@@ -83,6 +124,7 @@ if (leaveForm) {
         message.hidden      = false;
     }
 
+    // Gửi PATCH để duyệt hoặc hủy đơn, rồi tải lại danh sách nếu thành công.
     async function processLeave(url, reason) {
         try {
             await withLoading(async () => {
@@ -100,21 +142,27 @@ if (leaveForm) {
             });
         } catch (error) {
             if (cancelDialog.open) {
-                cancelError.textContent = error.errors?.cancel_reason?.[0] ?? confirmation.dataset.error;
-                cancelError.hidden      = false;
-                cancelReason.focus();
+                const reasonError = error.errors?.cancel_reason?.[0];
+                if (reasonError) {
+                    showFieldError(cancelReason.name, reasonError, cancelForm);
+                    cancelReason.focus();
+                } else {
+                    showFieldError('form', confirmation.dataset.error, cancelForm);
+                }
             } else {
                 showError();
             }
         }
     }
 
+    // Gửi từ khóa trên URL để lấy kết quả tìm kiếm.
     leaveList.addEventListener('submit', event => {
         event.preventDefault();
         const url  = new URL(event.target.action);
         url.search = new URLSearchParams(new FormData(event.target));
         loadList(url).catch(showError);
     });
+    // Xử lý sắp xếp, phân trang và mở hộp thoại duyệt hoặc hủy đơn.
     leaveList.addEventListener('click', event => {
         const link = event.target.closest('.leave-sort-link, .leave-pagination a');
         if (link) {
@@ -129,7 +177,7 @@ if (leaveForm) {
         if (cancel) {
             cancelUrl = cancel.dataset.cancelUrl;
             cancelForm.reset();
-            cancelError.hidden = true;
+            clearFieldErrors(cancelForm);
             cancelDialog.showModal();
             cancelReason.focus();
         }
@@ -137,8 +185,15 @@ if (leaveForm) {
     cancelDialog.querySelectorAll('[data-dismiss-cancel]').forEach(button => {
         button.addEventListener('click', () => cancelDialog.close());
     });
+    // Yêu cầu nhập lý do trước khi gửi request hủy đơn.
     cancelForm.addEventListener('submit', event => {
         event.preventDefault();
+        clearFieldErrors(cancelForm);
+        if (!cancelReason.value.trim()) {
+            showFieldError(cancelReason.name, cancelReason.dataset.requiredMessage, cancelForm);
+            cancelReason.focus();
+            return;
+        }
         processLeave(cancelUrl, cancelReason.value);
     });
 }

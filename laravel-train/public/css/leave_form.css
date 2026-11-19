@@ -105,15 +105,16 @@
     resize: vertical;
 }
 
-.leave-select-control {
-    position: relative;
-    width: 220px;
-    max-width: 100%;
-    height: 32px;
+.leave-select-control,
+.leave-date-control,
+.leave-attachment-control {
+    width: 50%;
 }
 
-.leave-form-type .leave-select-control {
-    width: 300px;
+.leave-select-control {
+    position: relative;
+    min-width: 0;
+    height: 32px;
 }
 
 .leave-select-control select {
@@ -138,8 +139,7 @@
 
 .leave-date-control {
     position: relative;
-    width: 170px;
-    max-width: 100%;
+    min-width: 0;
 }
 
 .leave-form-date input::-webkit-calendar-picker-indicator {
@@ -147,6 +147,7 @@
     height: 20px;
     margin: 0;
     padding: 0;
+    background: url('calendar.svg') center / contain no-repeat;
     cursor: pointer;
 }
 
@@ -159,9 +160,8 @@
 
 .leave-file-control {
     position: relative;
-    width: 220px;
+    flex: 1;
     min-width: 0;
-    max-width: 100%;
     height: 32px;
 }
 

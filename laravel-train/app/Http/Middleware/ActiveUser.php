@@ -23,7 +23,7 @@ class ActiveUser
             return redirect()->route('login', status: 303);
         }
 
-        if ($user?->password_status === 0 && ! $request->routeIs('password.*')) {
+        if ($user?->password_status === 0 && ! $request->routeIs('password.*')) { // Tài khoản đăng nhập lần đầu cần đổi mật khẩu
             return redirect()->route('password.edit', status: 303);
         }
 

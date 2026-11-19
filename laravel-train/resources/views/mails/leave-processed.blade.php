@@ -19,7 +19,7 @@
         <tr><th align="left">Thời gian xử lý:</th><td>{{ $values['processed_at'] }}</td></tr>
     </table>
 
-    @if ($values['content'])
+    @if (filled($values['content'] ?? null))
         <p>Nội dung:</p>
         <p style="white-space: pre-wrap;">{{ $values['content'] }}</p>
     @endif

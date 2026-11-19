@@ -413,6 +413,11 @@
     line-height: 1.4;
 }
 
+.leave-cancel-reason[aria-invalid="true"] {
+    border-color: #BD0101;
+    outline-color: #BD0101;
+}
+
 .leave-process-error {
     margin: 0 0 12px;
     color: #BD0101;

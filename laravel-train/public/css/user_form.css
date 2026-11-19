@@ -100,9 +100,9 @@
     padding-right: 40px;
 }
 
-.user-form-date input {
-    width: 170px;
-    max-width: 100%;
+.user-form-date input,
+.user-select-control {
+    width: 50%;
 }
 
 .user-form-date input::-webkit-calendar-picker-indicator {
@@ -110,13 +110,13 @@
     height: 20px;
     margin: 0;
     padding: 0;
+    background: url('calendar.svg') center / contain no-repeat;
     cursor: pointer;
 }
 
 .user-select-control {
     position: relative;
-    width: 220px;
-    max-width: 100%;
+    min-width: 0;
 }
 
 .user-select-control select {

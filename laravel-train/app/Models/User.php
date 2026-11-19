@@ -16,12 +16,13 @@ class User extends Authenticatable
     protected $authPasswordName  = 'password_hash'; // Khai báo tên thuộc tính mật khẩu cho xác thực
     protected $rememberTokenName = '';  // Không sử dụng thuộc tính remember_token
 
+    // Khai báo các trường được phép gán
     protected $fillable = [
         'username', 'full_name', 'password_hash', 'password_status', 'email', 'birth_date',
         'user_type', 'department', 'status', 'created_at', 'update_at',
     ];
 
-    // Khai báo cách chuyển kiểu thuộc tính users
+    // Khai báo cách đọc kiểu dữ liệu users
     protected function casts(): array
     {
         return [

@@ -19,7 +19,7 @@
     </table>
 
     {{-- Chỉ hiển thị nội dung khi người tạo có nhập và giữ nguyên xuống dòng. --}}
-    @if ($values['content'])
+    @if (filled($values['content'] ?? null))
         <p>Nội dung:</p>
         <p style="white-space: pre-wrap;">{{ $values['content'] }}</p>
     @endif

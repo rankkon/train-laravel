@@ -2,11 +2,13 @@ const userList = document.getElementById('user-list');
 const message  = document.getElementById('user-message');
 let currentUrl = new URL(window.location.href);
 
+// Báo lỗi chung trên trang danh sách người dùng.
 function showError() {
     message.textContent = confirmation.dataset.error;
     message.hidden      = false;
 }
 
+// Đồng bộ ô Chọn tất cả và các nút khóa theo những dòng đang được chọn.
 function updateSelection() {
     const checkboxes = [...userList.querySelectorAll('input[name="user_ids[]"]:not(:disabled)')];
     const selected   = checkboxes.filter(checkbox => checkbox.checked);
@@ -22,6 +24,7 @@ function updateSelection() {
     if (bulkButton) bulkButton.disabled = selected.length === 0;
 }
 
+// Tải HTML danh sách mới và cập nhật lại trạng thái chọn dòng.
 async function loadList(url) {
     try {
         currentUrl     = await refreshList(url, userList);
@@ -32,6 +35,7 @@ async function loadList(url) {
     }
 }
 
+// Gửi PATCH để khóa hoặc mở khóa, rồi tải lại danh sách sau khi thành công.
 async function changeStatus(url, userIds = null) {
     try {
         await withLoading(async () => {
@@ -56,12 +60,14 @@ async function changeStatus(url, userIds = null) {
     }
 }
 
+// Đưa từ khóa và bộ lọc vào URL để tải kết quả bằng AJAX.
 userList.addEventListener('submit', event => {
     event.preventDefault();
     const url  = new URL(event.target.action);
     url.search = new URLSearchParams(new FormData(event.target));
     loadList(url);
 });
+// Xử lý sắp xếp, phân trang và xác nhận các thao tác khóa tài khoản.
 userList.addEventListener('click', event => {
     const link = event.target.closest('.user-sort-link, .leave-pagination a');
     if (link) {
@@ -78,6 +84,7 @@ userList.addEventListener('click', event => {
         showConfirmation(confirmation.dataset.bulkLock, () => changeStatus(userList.dataset.bulkUrl, ids));
     }
 });
+// Cập nhật nhãn bộ lọc và trạng thái các checkbox trong bảng.
 userList.addEventListener('change', event => {
     if (event.target.name === 'status') {
         const filter                                = event.target.closest('details');
@@ -89,6 +96,7 @@ userList.addEventListener('change', event => {
     }
     updateSelection();
 });
+// Đóng menu lọc khi bấm ra ngoài hoặc nhấn Escape.
 document.addEventListener('click', event => {
     const filter = document.getElementById('user-status');
     if (!filter.contains(event.target) || event.target.matches('input[name="status"]')) filter.open = false;

@@ -18,7 +18,7 @@ class DashboardController extends Controller
     // Hiển thị dashboard theo phạm vi người dùng và phân trang
     public function index(Request $request): View
     {
-        $query = LeaveRequest::join('users', 'users.id', '=', 'leave.user_id'); // Truy vấn đã lọc quyền xem của người dùng
+        $query = LeaveRequest::join('users', 'users.id', '=', 'leave.user_id'); // Khởi tạo truy vấn danh sách đơn để lọc theo quyền xem
         if ($request->user()->user_type !== AppConstants::TYPE_ADMIN) {
             $query->where('users.department', $request->user()->department);
         }
@@ -29,9 +29,9 @@ class DashboardController extends Controller
             'leave.id', 'leave.leave_type', 'leave.created_at', 'leave.status',
             'leave.end_date', 'leave.title', 'users.full_name',
         ];
-        $leaves = $query->paginate(15, $columns);
+        $leaves = $query->paginate(15, $columns); // Lấy danh sách đơn theo từng trang
         if ($leaves->isEmpty() && $leaves->currentPage() > 1) {
-            $leaves = $query->paginate(15, $columns, page: $leaves->lastPage());
+            $leaves = $query->paginate(15, $columns, page: $leaves->lastPage()); // Hiện trang cuối nếu trang trong request không có dữ liệu
         }
 
         return view('dashboard.index', [ // Truyền danh sách đơn và danh mục hiển thị sang giao diện

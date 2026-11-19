@@ -22,8 +22,9 @@
                 <p class="leave-form-error" data-form-error="form" hidden></p>
                 <div class="leave-form-field">
                     <label for="leave-title"><span class="required-marker">*</span> Tiêu đề</label>
-                    <input type="text" id="leave-title" name="title" value="{{ $leave->title }}" maxlength="255" required>
-                    <p class="leave-form-error" data-form-error="title" hidden></p>
+                    <input type="text" id="leave-title" name="title" value="{{ $leave->title }}" maxlength="255" required
+                        aria-describedby="leave-title-error" data-required-message="{{ __('validation.custom.title.required') }}">
+                    <p id="leave-title-error" class="leave-form-error" data-form-error="title" hidden></p>
                 </div>
 
                 <div class="leave-form-field leave-form-content">
@@ -35,13 +36,14 @@
                 <div class="leave-form-field">
                     <label for="leave-approver"><span class="required-marker">*</span> Người duyệt</label>
                     <div class="leave-select-control">
-                        <select id="leave-approver" name="approver_id" required>
+                        <select id="leave-approver" name="approver_id" required aria-describedby="leave-approver-error"
+                            data-required-message="{{ __('validation.custom.approver_id.required') }}">
                             @foreach ($approvers as $approver)
                                 <option value="{{ $approver->id }}" @selected($leave->approver_id === $approver->id)>{{ $approver->full_name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <p class="leave-form-error" data-form-error="approver_id" hidden></p>
+                    <p id="leave-approver-error" class="leave-form-error" data-form-error="approver_id" hidden></p>
                     @if ($approvers->isEmpty())
                         <p class="leave-form-error">{{ __('messages.approver_unavailable') }}</p>
                     @endif
@@ -50,13 +52,14 @@
                 <div class="leave-form-field leave-form-type">
                     <label for="leave-type"><span class="required-marker">*</span> Loại đơn</label>
                     <div class="leave-select-control">
-                        <select id="leave-type" name="leave_type" required>
+                        <select id="leave-type" name="leave_type" required aria-describedby="leave-type-error"
+                            data-required-message="{{ __('validation.custom.leave_type.required') }}">
                             @foreach (\App\Constants\AppConstants::LEAVE_TYPES as $code => $name)
                                 <option value="{{ $code }}" @selected($leave->leave_type === $code)>{{ $name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <p class="leave-form-error" data-form-error="leave_type" hidden></p>
+                    <p id="leave-type-error" class="leave-form-error" data-form-error="leave_type" hidden></p>
                 </div>
 
                 {{-- Ngày thêm mới bị giới hạn từ hôm nay; form sửa cho phép chọn ngày quá khứ. --}}
@@ -64,17 +67,21 @@
                     <label for="leave-start-date"><span class="required-marker">*</span> Ngày bắt đầu</label>
                     <div class="leave-date-control">
                         <input type="date" id="leave-start-date" name="start_date" value="{{ $leave->start_date->toDateString() }}"
-                            @if (!$leave->exists) min="{{ today()->toDateString() }}" @endif required>
+                            @if (!$leave->exists) min="{{ today()->toDateString() }}" @endif required aria-describedby="leave-start-date-error"
+                            data-required-message="{{ __('validation.custom.start_date.required') }}"
+                            data-min-message="{{ __('validation.custom.start_date.after_or_equal') }}">
                     </div>
-                    <p class="leave-form-error" data-form-error="start_date" hidden></p>
+                    <p id="leave-start-date-error" class="leave-form-error" data-form-error="start_date" hidden></p>
                 </div>
 
                 <div class="leave-form-field leave-form-date">
                     <label for="leave-end-date"><span class="required-marker">*</span> Ngày kết thúc</label>
                     <div class="leave-date-control">
-                        <input type="date" id="leave-end-date" name="end_date" value="{{ $leave->end_date->toDateString() }}" required>
+                        <input type="date" id="leave-end-date" name="end_date" value="{{ $leave->end_date->toDateString() }}" required
+                            aria-describedby="leave-end-date-error" data-required-message="{{ __('validation.custom.end_date.required') }}"
+                            data-min-message="{{ __('validation.custom.end_date.after_or_equal') }}">
                     </div>
-                    <p class="leave-form-error" data-form-error="end_date" hidden></p>
+                    <p id="leave-end-date-error" class="leave-form-error" data-form-error="end_date" hidden></p>
                 </div>
 
                 <div class="leave-form-field">
@@ -83,7 +90,9 @@
                     <div class="leave-attachment-control">
                         <div class="leave-file-control">
                             <input type="file" id="leave-attachment" name="attachment" accept=".jpg,.jpeg,.png,.gif,.webp,.bmp"
-                                data-preview-url="{{ $leave->exists ? route('leaves.preview', $leave) : '' }}"
+                                data-preview-url="{{ $leave->attachment_path ? route('leaves.preview', $leave) : '' }}"
+                                data-invalid-message="{{ __('validation.custom.attachment.mimes') }}"
+                                data-checking-message="{{ __('messages.processing') }}" aria-describedby="leave-attachment-error"
                                 title="{{ __('messages.attachment_hint') }}">
                             <span id="leave-file-name" class="leave-file-name" data-original-name="{{ $leave->attachment_original_name }}"
                                 title="{{ $leave->attachment_original_name }}">{{ $leave->attachment_original_name }}</span>
@@ -97,7 +106,7 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="leave-form-error" data-form-error="attachment" hidden></p>
+                    <p id="leave-attachment-error" class="leave-form-error" data-form-error="attachment" role="alert" hidden></p>
                 </div>
             </div>
 

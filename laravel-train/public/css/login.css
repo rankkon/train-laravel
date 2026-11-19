@@ -296,6 +296,15 @@
     font: inherit;
 }
 
+.password-setup-fields input[aria-invalid="true"] {
+    border-color: #BD0101;
+    outline-color: #BD0101;
+}
+
+.password-setup-fields input + .password-setup-error {
+    margin-top: 6px;
+}
+
 .password-setup-required,
 .password-setup-error {
     color: #BD0101;
